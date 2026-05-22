@@ -1,0 +1,18 @@
+export { createTwitchClient } from "./providers/twitch/index.js"
+export type {
+    ChatMessage,
+    ChannelMetrics as TwitchChannelMetrics,
+    ChannelMetricsRequest as TwitchChannelMetricsRequest,
+    TwitchChatClient,
+    TwitchChatListenRequest,
+    TwitchChatListener,
+    TwitchChatStartResult,
+    TwitchChannelResolveRequest,
+    TwitchChannelResolveResult,
+    TwitchChannelMetric,
+    TwitchChannelsClient,
+    TwitchClient,
+    TwitchClientConfig,
+    TwitchEventSubscription,
+    TwitchStopOptions,
+} from "./providers/twitch/types.js"
