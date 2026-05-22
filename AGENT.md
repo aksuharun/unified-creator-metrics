@@ -53,7 +53,8 @@ Use:
 
 ```bash
 npm run build
-npm run smoke:youtube
+npm run smoke:youtube:channel-metrics
 ```
 
-The smoke command requires `YOUTUBE_API_KEY` and calls the live YouTube API.
+Smoke commands require provider credentials and call live provider APIs. Message
+smoke commands send real chat messages.

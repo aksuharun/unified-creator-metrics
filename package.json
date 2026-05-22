@@ -13,10 +13,28 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "smoke:youtube:channel": "npm run build && node examples/youtube-followers.mjs",
-    "smoke:youtube:video": "npm run build && node examples/youtube-video-metrics.mjs"
+    "smoke:youtube:resolve-channel": "npm run build && node examples/youtube/resolve-channel.mjs",
+    "smoke:youtube:channel-metrics": "npm run build && node examples/youtube/channel-metrics.mjs",
+    "smoke:youtube:video-metrics": "npm run build && node examples/youtube/video-metrics.mjs",
+    "smoke:youtube:chat-listener": "npm run build && node examples/youtube/chat-listener.mjs",
+    "smoke:youtube:send-chat-message": "npm run build && node examples/youtube/send-chat-message.mjs",
+    "smoke:kick:resolve-channel": "npm run build && node examples/kick/resolve-channel.mjs",
+    "smoke:kick:concurrent-viewers": "npm run build && node examples/kick/concurrent-viewers.mjs",
+    "smoke:kick:chat-listener": "npm run build && node examples/kick/chat-listener.mjs",
+    "smoke:kick:send-chat-message": "npm run build && node examples/kick/send-chat-message.mjs",
+    "smoke:twitch:resolve-channel": "npm run build && node examples/twitch/resolve-channel.mjs",
+    "smoke:twitch:channel-metrics": "npm run build && node examples/twitch/channel-metrics.mjs",
+    "smoke:twitch:chat-listener": "npm run build && node examples/twitch/chat-listener.mjs",
+    "smoke:twitch:send-chat-message": "npm run build && node examples/twitch/send-chat-message.mjs",
+    "smoke:twitch:concurrent-viewers": "npm run build && node examples/twitch/concurrent-viewers.mjs",
+    "playground:twitch:viewer-count": "node playground/twitch-live-viewer-count.mjs",
+    "smoke:multi-platform:channel-metrics": "npm run build && node examples/multi-platform/channel-metrics.mjs",
+    "smoke:multi-platform:video-metrics": "npm run build && node examples/multi-platform/video-metrics.mjs",
+    "smoke:multi-platform:chat-listener": "npm run build && node examples/multi-platform/chat-listener.mjs",
+    "smoke:multi-platform:send-chat-message": "npm run build && node examples/multi-platform/send-chat-message.mjs"
   },
   "engines": {
     "node": ">=18"
@@ -28,8 +46,10 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",
+    "dotenv": "^17.4.2",
     "eslint": "^10.4.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.59.4"
+    "typescript-eslint": "^8.59.4",
+    "vitest": "^4.1.7"
   }
 }
