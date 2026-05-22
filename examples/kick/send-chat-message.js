@@ -5,7 +5,7 @@ import {
     getKickUserAccessToken,
     handleSmokeTestError,
     positiveIntegerEnv,
-} from "../smoke-test-helpers.mjs"
+} from "../smoke-test-helpers.js"
 
 async function main() {
     const accessToken = getKickUserAccessToken()
