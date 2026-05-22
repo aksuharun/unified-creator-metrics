@@ -5,7 +5,7 @@ import {
     handleSmokeTestError,
     requiredEnv,
     resolveYoutubeLiveChatId,
-} from "../smoke-test-helpers.js"
+} from "../../smoke/helpers.js"
 
 async function main() {
     const accessToken = requiredEnv("YOUTUBE_ACCESS_TOKEN")

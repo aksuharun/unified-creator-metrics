@@ -4,7 +4,7 @@ import {
     getKickAppAccessToken,
     handleSmokeTestError,
     optionalEnv,
-} from "../smoke-test-helpers.js"
+} from "../helpers.js"
 
 async function main() {
     const accessToken = await getKickAppAccessToken()

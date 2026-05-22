@@ -4,7 +4,7 @@ import {
     handleSmokeTestError,
     optionalEnv,
     requiredEnv,
-} from "../smoke-test-helpers.js"
+} from "../helpers.js"
 
 /* global fetch, URL */
 

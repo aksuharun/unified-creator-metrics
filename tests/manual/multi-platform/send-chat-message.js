@@ -11,7 +11,7 @@ import {
     positiveIntegerEnv,
     requiredEnv,
     resolveYoutubeLiveChatId,
-} from "../smoke-test-helpers.js"
+} from "../../smoke/helpers.js"
 
 async function main() {
     const platform = process.env.CHAT_PLATFORM || "youtube"

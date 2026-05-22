@@ -5,7 +5,7 @@ import {
     createKickClient,
     createYoutubeClient,
 } from "@multi-platform-api/library"
-import { getKickAppAccessToken, optionalEnv } from "../smoke-test-helpers.js"
+import { getKickAppAccessToken, optionalEnv } from "../../smoke/helpers.js"
 
 const port = Number(process.env.PORT || 8090)
 const webhookPath = process.env.KICK_WEBHOOK_PATH || "/kick/webhook"
@@ -87,7 +87,7 @@ console.log(`Kick signature verification: ${verifySignature ? "enabled" : "disab
 console.log(`YouTube liveChatId: ${youtubeSetup?.liveChatId ?? "n/a"}`)
 console.log("Configure your Kick app webhook URL to:")
 console.log(`https://YOUR_PUBLIC_DOMAIN${webhookPath}`)
-console.log("This example also accepts POST / for tunnel-root webhook URLs.")
+console.log("This manual test also accepts POST / for tunnel-root webhook URLs.")
 console.log(`HTTP server listening on http://localhost:${port}`)
 
 const server = createServer(async (request, response) => {

@@ -7,7 +7,7 @@ import {
     handleSmokeTestError,
     optionalEnv,
     requiredEnv,
-} from "../smoke-test-helpers.js"
+} from "../helpers.js"
 
 async function main() {
     const youtube = createYoutubeClient({

@@ -1,7 +1,7 @@
 import "dotenv/config"
 import { createServer } from "node:http"
 import { createKickClient } from "@multi-platform-api/library"
-import { getKickAppAccessToken, optionalEnv } from "../smoke-test-helpers.js"
+import { getKickAppAccessToken, optionalEnv } from "../../smoke/helpers.js"
 
 const accessToken = await getKickAppAccessToken()
 const broadcasterUserId = Number(requiredEnv("KICK_BROADCASTER_USER_ID"))
@@ -59,10 +59,10 @@ if (webhookCallbackUrl) {
     )
 }
 console.log(`Signature verification: ${verifySignature ? "enabled" : "disabled"}`)
-console.log("Run npm run build after changing src/ before rerunning this example.")
+console.log("Run npm run build after changing src/ before rerunning this manual test.")
 console.log("Configure your Kick app webhook URL to the exact path:")
 console.log(`https://YOUR_PUBLIC_DOMAIN${webhookPath}`)
-console.log("This example also accepts POST / for tunnel-root webhook URLs.")
+console.log("This manual test also accepts POST / for tunnel-root webhook URLs.")
 console.log("When using cloudflared, copy the https://*.trycloudflare.com URL.")
 console.log(`Example: https://YOUR-TUNNEL.trycloudflare.com${webhookPath}`)
 console.log("Local checks:")
