@@ -1,5 +1,5 @@
 import "dotenv/config"
-import { createTwitchClient } from "@multi-platform-api/library"
+import { createTwitchClient } from "unified-creator-metrics"
 import {
     getSmokeMessage,
     handleSmokeTestError,

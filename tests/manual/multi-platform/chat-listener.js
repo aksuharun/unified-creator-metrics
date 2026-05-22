@@ -4,7 +4,7 @@ import {
     createMultiPlatformClient,
     createKickClient,
     createYoutubeClient,
-} from "@multi-platform-api/library"
+} from "unified-creator-metrics"
 import { getKickAppAccessToken, optionalEnv } from "../../smoke/helpers.js"
 
 const port = Number(process.env.PORT || 8090)

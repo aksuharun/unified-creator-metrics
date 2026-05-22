@@ -1,6 +1,6 @@
 import "dotenv/config"
 import { createServer } from "node:http"
-import { createKickClient } from "@multi-platform-api/library"
+import { createKickClient } from "unified-creator-metrics"
 import { getKickAppAccessToken, optionalEnv } from "../../smoke/helpers.js"
 
 const accessToken = await getKickAppAccessToken()

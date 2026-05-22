@@ -1,5 +1,5 @@
 {
-  "name": "@multi-platform-api/library",
+  "name": "unified-creator-metrics",
   "version": "0.1.0",
   "description": "Unified TypeScript client for normalized public-facing platform metrics.",
   "type": "module",

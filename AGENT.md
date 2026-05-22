@@ -1,6 +1,6 @@
 # Project Context
 
-This repository is building a unified multi-platform metrics library.
+This repository is building Unified Creator Metrics.
 
 The goal is to expose one normalized API for basic public-facing metrics across platforms such as YouTube, Twitch, and Kick. Platform-specific clients handle authentication, provider SDKs, API quirks, and native response parsing. The multi-platform client composes those provider clients and routes normalized requests.
 

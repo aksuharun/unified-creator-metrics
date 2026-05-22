@@ -1,5 +1,5 @@
 import "dotenv/config"
-import { createYoutubeClient } from "@multi-platform-api/library"
+import { createYoutubeClient } from "unified-creator-metrics"
 import {
     handleSmokeTestError,
     optionalEnv,

@@ -1,5 +1,5 @@
 import "dotenv/config"
-import { createKickClient } from "@multi-platform-api/library"
+import { createKickClient } from "unified-creator-metrics"
 import {
     getSmokeMessage,
     getKickUserAccessToken,

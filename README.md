@@ -1,6 +1,6 @@
-# Multi-Platform API Library
+# Unified Creator Metrics
 
-`@multi-platform-api/library` is a TypeScript library for normalized channel metrics, video metrics, and chat integrations across YouTube, Twitch, and Kick. Use provider clients directly when you need platform-native identifiers, or compose them with `createMultiPlatformClient()` when you want one routing surface.
+`Unified Creator Metrics` is a TypeScript library for normalized channel metrics, video metrics, and chat integrations across YouTube, Twitch, and Kick. Use provider clients directly when you need platform-native identifiers, or compose them with `createMultiPlatformClient()` when you want one routing surface.
 
 ## Features
 
@@ -36,7 +36,7 @@ Resolve a provider-native identity first, then request normalized metrics throug
 import {
   createMultiPlatformClient,
   createYoutubeClient,
-} from "@multi-platform-api/library";
+} from "unified-creator-metrics";
 
 const youtube = createYoutubeClient({
   apiKey: process.env.YOUTUBE_API_KEY,
@@ -67,7 +67,7 @@ import {
   createKickClient,
   createMultiPlatformClient,
   createYoutubeClient,
-} from "@multi-platform-api/library";
+} from "unified-creator-metrics";
 
 const client = createMultiPlatformClient({
   kick: createKickClient({

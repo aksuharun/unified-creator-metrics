@@ -3,7 +3,7 @@ import {
     createKickClient,
     createMultiPlatformClient,
     createYoutubeClient,
-} from "@multi-platform-api/library"
+} from "unified-creator-metrics"
 import {
     getSmokeMessage,
     getKickUserAccessToken,

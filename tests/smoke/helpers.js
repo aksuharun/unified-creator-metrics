@@ -2,11 +2,11 @@ import {
     PlatformApiError,
     PlatformValidationError,
     createGoogleYoutubeClient,
-} from "@multi-platform-api/library"
+} from "unified-creator-metrics"
 
 /* global fetch, URLSearchParams */
 
-const DEFAULT_MESSAGE_PREFIX = "Smoke test from multi-platform-api-library"
+const DEFAULT_MESSAGE_PREFIX = "Smoke test from Unified Creator Metrics"
 
 export function requiredEnv(name) {
     const value = process.env[name]
