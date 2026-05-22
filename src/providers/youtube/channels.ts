@@ -2,8 +2,16 @@ import { PlatformApiError } from "../../errors.js"
 import { YOUTUBE_CHANNEL_FIELDS, YOUTUBE_PLATFORM } from "./constants.js"
 import type { GoogleYoutubeClient } from "./google-client.js"
 import { normalizeYoutubeChannelMetrics } from "./normalize.js"
-import { validateChannelMetricsRequest } from "./validation.js"
-import type { ChannelMetricsRequest, YoutubeChannelsClient } from "./types.js"
+import {
+    normalizeYoutubeHandle,
+    validateChannelMetricsRequest,
+    validateChannelResolveRequest,
+} from "./validation.js"
+import type {
+    ChannelMetricsRequest,
+    YoutubeChannelResolveRequest,
+    YoutubeChannelsClient,
+} from "./types.js"
 
 /**
  * Dependencies required to create the YouTube channel client.
@@ -23,8 +31,61 @@ export function createYoutubeChannelsClient(
 ): YoutubeChannelsClient {
     return {
     /**
-     * Fetch normalized channel metrics from the YouTube Data API.
+     * Resolve a YouTube channel id from a public handle.
      */
+        async resolve(
+            request: YoutubeChannelResolveRequest,
+        ): ReturnType<YoutubeChannelsClient["resolve"]> {
+            validateChannelResolveRequest(request)
+
+            const handle = normalizeYoutubeHandle(request.handle)
+            let response
+
+            try {
+                response = await options.youtubeApiClient.channels.list({
+                    part: ["id", "snippet"],
+                    forHandle: handle,
+                    maxResults: 1,
+                    fields: "items(id,snippet(title))",
+                })
+            } catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                })
+            }
+
+            const item = response.data.items?.[0]
+
+            if (!item?.id) {
+                throw new PlatformApiError("YouTube channel was not found.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: response.status,
+                })
+            }
+
+            const result = {
+                platform: YOUTUBE_PLATFORM,
+                channelId: String(item.id),
+                handle,
+                displayName: item.snippet?.title ?? null,
+                fetchedAt: new Date().toISOString(),
+            } as const
+
+            if (request.includeRaw === true) {
+                return {
+                    ...result,
+                    raw: response.data,
+                }
+            }
+
+            return result
+        },
+
+        /**
+         * Fetch normalized channel metrics from the YouTube Data API.
+         */
         async getMetrics(
             request: ChannelMetricsRequest,
         ): ReturnType<YoutubeChannelsClient["getMetrics"]> {

@@ -1,3 +1,4 @@
+import { createYoutubeChatClient } from "./chat.js"
 import { createYoutubeChannelsClient } from "./channels.js"
 import { YOUTUBE_PLATFORM } from "./constants.js"
 import {
@@ -21,6 +22,8 @@ export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient 
 
     const youtubeApiClient = createGoogleYoutubeClient({
         apiKey: config.apiKey,
+        oauth2Client: config.oauth2Client,
+        accessToken: config.accessToken,
     })
 
     return {
@@ -29,6 +32,9 @@ export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient 
             youtubeApiClient,
         }),
         videos: createYoutubeVideosClient({
+            youtubeApiClient,
+        }),
+        chat: createYoutubeChatClient({
             youtubeApiClient,
         }),
     }

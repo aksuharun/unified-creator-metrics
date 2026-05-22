@@ -1,4 +1,5 @@
 import { type youtube_v3 } from "googleapis";
+export type GoogleYoutubeAuthClient = Exclude<youtube_v3.Options["auth"], string | undefined>;
 /**
  * Configuration for the official Google APIs YouTube client.
  */
@@ -6,7 +7,15 @@ export type GoogleYoutubeClientConfig = {
     /**
    * YouTube Data API key.
    */
-    apiKey: string;
+    apiKey?: string;
+    /**
+     * Pre-configured OAuth2 Client or auth client instance.
+     */
+    oauth2Client?: GoogleYoutubeAuthClient;
+    /**
+     * Raw OAuth 2.0 access token string.
+     */
+    accessToken?: string;
 };
 /**
  * Official Google APIs YouTube v3 client instance.

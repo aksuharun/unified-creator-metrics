@@ -6,8 +6,11 @@ export function validateYoutubeConfig(config) {
             platform: YOUTUBE_PLATFORM,
         });
     }
-    if (!("apiKey" in config) || !config.apiKey) {
-        throw new PlatformValidationError("YouTube apiKey is required.", {
+    const hasApiKey = "apiKey" in config && typeof config.apiKey === "string" && config.apiKey.length > 0;
+    const hasOauth2Client = "oauth2Client" in config && config.oauth2Client;
+    const hasAccessToken = "accessToken" in config && typeof config.accessToken === "string" && config.accessToken.length > 0;
+    if (!hasApiKey && !hasOauth2Client && !hasAccessToken) {
+        throw new PlatformValidationError("YouTube apiKey, oauth2Client, or accessToken is required.", {
             platform: YOUTUBE_PLATFORM,
         });
     }
@@ -36,6 +39,23 @@ export function validateChannelMetricsRequest(request) {
         }
     }
 }
+export function validateChannelResolveRequest(request) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Channel resolve request is required.", {
+            platform: YOUTUBE_PLATFORM,
+        });
+    }
+    if (!("handle" in request) || typeof request.handle !== "string") {
+        throw new PlatformValidationError("handle is required.", {
+            platform: YOUTUBE_PLATFORM,
+        });
+    }
+    if (!normalizeYoutubeHandle(request.handle)) {
+        throw new PlatformValidationError("handle is required.", {
+            platform: YOUTUBE_PLATFORM,
+        });
+    }
+}
 export function validateVideoMetricsRequest(request) {
     if (!request || typeof request !== "object") {
         throw new PlatformValidationError("Video metrics request is required.", {
@@ -59,4 +79,11 @@ export function validateVideoMetricsRequest(request) {
             throw new PlatformValidationError(`YouTube video metric "${metric}" is not supported yet.`, { platform: YOUTUBE_PLATFORM });
         }
     }
+}
+export function normalizeYoutubeHandle(value) {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return "";
+    }
+    return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
 }
