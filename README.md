@@ -1,5 +1,7 @@
 # Unified Creator Metrics
 
+This package is under active development. If you install it from npm, prefer the `next` dist-tag so you explicitly opt into the latest pre-release builds.
+
 `Unified Creator Metrics` is a TypeScript library for normalized channel metrics, video metrics, and chat integrations across YouTube, Twitch, and Kick. Use provider clients directly when you need platform-native identifiers, or compose them with `createMultiPlatformClient()` when you want one routing surface.
 
 ## Features
@@ -26,6 +28,12 @@ From a checkout of this repository:
 ```bash
 npm install
 npm run build
+```
+
+To install the published prerelease:
+
+```bash
+npm install unified-creator-metrics@next
 ```
 
 ## Usage
@@ -109,6 +117,23 @@ Chat listeners use the same event shape across providers. Sending chat messages 
 - Run `npm run test:smoke` when you need to verify live provider integrations
 - Build with `npm run build` if you changed `src/`
 - Open a pull request with the problem statement and the resulting behavior
+
+## Publishing
+
+1. Make sure `npm test` and `npm run build` pass.
+2. Bump the version with a prerelease identifier when you want to ship changes early, for example:
+
+```bash
+npm version prerelease --preid=next
+```
+
+3. Publish to npm:
+
+```bash
+npm publish
+```
+
+The package is configured to publish with the `next` dist-tag by default, so consumers must opt in to pre-release updates.
 
 ## License
 
