@@ -1,8 +1,13 @@
 export { createTwitchClient } from "./providers/twitch/index.js"
+export { refreshTwitchAccessToken } from "./providers/twitch/auth.js"
 export type {
+    TwitchBanUserRequest,
+    TwitchBanUserResult,
     ChatMessage,
     ChannelMetrics as TwitchChannelMetrics,
     ChannelMetricsRequest as TwitchChannelMetricsRequest,
+    VideoMetrics as TwitchVideoMetrics,
+    VideoMetricsRequest as TwitchVideoMetricsRequest,
     TwitchChatClient,
     TwitchChatListenRequest,
     TwitchChatListener,
@@ -13,6 +18,17 @@ export type {
     TwitchChannelsClient,
     TwitchClient,
     TwitchClientConfig,
+    TwitchDeleteMessageRequest,
+    TwitchDeleteMessageResult,
     TwitchEventSubscription,
+    TwitchSendMessageRequest,
+    TwitchSendMessageResult,
     TwitchStopOptions,
+    TwitchTimeoutUserRequest,
+    TwitchTimeoutUserResult,
+    TwitchUnbanUserRequest,
+    TwitchUnbanUserResult,
+    TwitchUserTokenUpdate,
+    TwitchVideoMetric,
+    TwitchVideosClient,
 } from "./providers/twitch/types.js"

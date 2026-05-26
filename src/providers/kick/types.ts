@@ -3,17 +3,65 @@ import type {
     ChatMessage as SharedChatMessage,
     VideoMetrics as SharedVideoMetrics,
     VideoMetricsRequest as SharedVideoMetricsRequest,
+    DeleteMessageResult,
+    BanUserResult,
     SendMessageResult,
+    TimeoutUserResult,
+    UnbanUserResult,
 } from "../../types.js"
+import type { KickUserTokenUpdate } from "./auth.js"
+
+export type { KickUserTokenUpdate } from "./auth.js"
 
 /**
  * Configuration required to create a Kick provider client.
  */
 export type KickClientConfig = {
     /**
-   * OAuth app access token used for Kick public API requests.
-   */
-    accessToken: string | undefined
+     * OAuth app access token used for public and webhook-oriented features such
+     * as `channels.resolve()`, `videos.getMetrics()`, and `chat.listen()`.
+     */
+    appAccessToken?: string
+
+    /**
+     * OAuth user access token used for authenticated chat actions such as
+     * `chat.sendMessage()`.
+     */
+    userAccessToken?: string
+
+    /**
+     * Kick OAuth application client id.
+     *
+     * Required when `userRefreshToken` is provided.
+     */
+    clientId?: string
+
+    /**
+     * Kick OAuth application client secret.
+     *
+     * Required when `userRefreshToken` is provided.
+     */
+    clientSecret?: string
+
+    /**
+     * Kick OAuth refresh token used to obtain and rotate `userAccessToken`
+     * automatically.
+     */
+    userRefreshToken?: string
+
+    /**
+     * Called whenever the library refreshes the Kick user token pair.
+     * Persist the returned refresh token because Kick may rotate it.
+     */
+    onUserTokenUpdate?: (
+        tokens: KickUserTokenUpdate,
+    ) => void | Promise<void>
+
+    /**
+     * @deprecated Prefer `appAccessToken` and `userAccessToken`. When provided,
+     * this value is used as a fallback for features that need either token kind.
+     */
+    accessToken?: string
 }
 
 /**
@@ -90,8 +138,10 @@ export type KickChannelResolveResult = {
  */
 export type KickChannelsClient = {
     /**
-   * Resolve a Kick broadcaster user id from a public channel slug.
-   */
+     * Resolve a Kick broadcaster user id from a public channel slug.
+     *
+     * Requires `appAccessToken` on the provider config.
+     */
     resolve(request: KickChannelResolveRequest): Promise<KickChannelResolveResult>
 }
 
@@ -100,8 +150,10 @@ export type KickChannelsClient = {
  */
 export type KickVideosClient = {
     /**
-   * Fetch normalized livestream metrics from the Kick public API.
-   */
+     * Fetch normalized livestream metrics from the Kick public API.
+     *
+     * Requires `appAccessToken` on the provider config.
+     */
     getMetrics(request: VideoMetricsRequest): Promise<VideoMetrics>
 }
 
@@ -375,19 +427,89 @@ export type KickSendMessageRequest =
  */
 export type KickSendMessageResult = SendMessageResult<"kick">
 
+export type KickDeleteMessageRequest = {
+    messageId: string
+    includeRaw?: boolean
+}
+
+export type KickDeleteMessageResult = DeleteMessageResult<"kick">
+
+export type KickBanUserRequest = {
+    broadcasterUserId: number
+    userId: number
+    reason?: string
+    includeRaw?: boolean
+}
+
+export type KickBanUserResult = BanUserResult<"kick">
+
+export type KickTimeoutUserRequest = {
+    broadcasterUserId: number
+    userId: number
+    durationSeconds: number
+    reason?: string
+    includeRaw?: boolean
+}
+
+export type KickTimeoutUserResult = TimeoutUserResult<"kick">
+
+export type KickUnbanUserRequest = {
+    broadcasterUserId: number
+    userId: number
+    includeRaw?: boolean
+}
+
+export type KickUnbanUserResult = UnbanUserResult<"kick">
+
 /**
  * Kick chat event methods.
  */
 export type KickChatClient = {
     /**
-   * Listen for normalized Kick chat message events.
-   */
+     * Listen for normalized Kick chat message events.
+     *
+     * Requires `appAccessToken` on the provider config.
+     */
     listen(request?: KickChatListenRequest): KickChatListener
 
     /**
      * Send a normalized text message to the specified Kick channel chat.
+     *
+     * Requires `userAccessToken` on the provider config.
      */
     sendMessage(request: KickSendMessageRequest): Promise<KickSendMessageResult>
+
+    /**
+     * Delete a specific Kick chat message.
+     *
+     * Requires `userAccessToken` on the provider config.
+     */
+    deleteMessage(
+        request: KickDeleteMessageRequest,
+    ): Promise<KickDeleteMessageResult>
+
+    /**
+     * Permanently ban a user from a Kick chat room.
+     *
+     * Requires `userAccessToken` on the provider config.
+     */
+    banUser(request: KickBanUserRequest): Promise<KickBanUserResult>
+
+    /**
+     * Temporarily ban a user from a Kick chat room.
+     *
+     * Requires `userAccessToken` on the provider config.
+     */
+    timeoutUser(
+        request: KickTimeoutUserRequest,
+    ): Promise<KickTimeoutUserResult>
+
+    /**
+     * Remove a Kick ban or timeout for a user.
+     *
+     * Requires `userAccessToken` on the provider config.
+     */
+    unbanUser(request: KickUnbanUserRequest): Promise<KickUnbanUserResult>
 }
 
 /**

@@ -9,7 +9,7 @@ describe("createKickChatClient().listen", () => {
     })
 
     it("requires webhook.callbackUrl when subscription mode is ensure", () => {
-        const chat = createKickChatClient({ accessToken: "kick-token" })
+        const chat = createKickChatClient({ appAccessToken: "kick-token" })
 
         expect(() => {
             chat.listen({
@@ -20,7 +20,7 @@ describe("createKickChatClient().listen", () => {
     })
 
     it("rejects non-positive maxRecentMessageIds values", () => {
-        const chat = createKickChatClient({ accessToken: "kick-token" })
+        const chat = createKickChatClient({ appAccessToken: "kick-token" })
 
         expect(() => {
             chat.listen({
@@ -51,7 +51,7 @@ describe("createKickChatClient().listen", () => {
             ),
         )
 
-        const chat = createKickChatClient({ accessToken: "kick-token" }).listen({
+        const chat = createKickChatClient({ appAccessToken: "kick-token" }).listen({
             broadcasterUserId: 123,
             subscription: "ensure",
             webhook: {
@@ -114,7 +114,7 @@ describe("createKickChatClient().listen", () => {
                 ),
             )
 
-        const chat = createKickChatClient({ accessToken: "kick-token" }).listen({
+        const chat = createKickChatClient({ appAccessToken: "kick-token" }).listen({
             broadcasterUserId: 123,
             subscription: "ensure",
             webhook: {
@@ -175,7 +175,7 @@ describe("createKickChatClient().listen", () => {
             ),
         )
 
-        const chat = createKickChatClient({ accessToken: "kick-token" }).listen({
+        const chat = createKickChatClient({ appAccessToken: "kick-token" }).listen({
             broadcasterUserId: 123,
             subscription: "ensure",
             webhook: {

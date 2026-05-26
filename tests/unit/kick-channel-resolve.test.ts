@@ -22,7 +22,7 @@ describe("createKickChannelsClient().resolve", () => {
             new Response(JSON.stringify(responsePayload), { status: 200 }),
         )
 
-        const channels = createKickChannelsClient({ accessToken: "kick-token" })
+        const channels = createKickChannelsClient({ appAccessToken: "kick-token" })
         const result = await channels.resolve({
             slug: "AksuHarun",
             includeRaw: true,
@@ -50,7 +50,7 @@ describe("createKickChannelsClient().resolve", () => {
 
     it("rejects blank slugs before calling the API", async () => {
         const fetchMock = vi.mocked(fetch)
-        const channels = createKickChannelsClient({ accessToken: "kick-token" })
+        const channels = createKickChannelsClient({ appAccessToken: "kick-token" })
 
         await expect(
             channels.resolve({
@@ -65,7 +65,7 @@ describe("createKickChannelsClient().resolve", () => {
         fetchMock.mockResolvedValue(
             new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 }),
         )
-        const channels = createKickChannelsClient({ accessToken: "kick-token" })
+        const channels = createKickChannelsClient({ appAccessToken: "kick-token" })
 
         await expect(
             channels.resolve({

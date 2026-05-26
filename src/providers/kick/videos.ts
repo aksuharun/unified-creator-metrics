@@ -4,11 +4,14 @@ import {
     normalizeKickVideoMetrics,
     type KickChannelResponse,
 } from "./normalize.js"
-import { validateVideoMetricsRequest } from "./validation.js"
+import {
+    requireKickAppAccessToken,
+    validateVideoMetricsRequest,
+} from "./validation.js"
 import type { KickVideosClient, VideoMetricsRequest } from "./types.js"
 
 export type KickVideosClientOptions = {
-    accessToken: string
+    appAccessToken?: string
 }
 
 export function createKickVideosClient(
@@ -19,6 +22,10 @@ export function createKickVideosClient(
             request: VideoMetricsRequest,
         ): ReturnType<KickVideosClient["getMetrics"]> {
             validateVideoMetricsRequest(request)
+            const appAccessToken = requireKickAppAccessToken(
+                options.appAccessToken,
+                "videos.getMetrics()",
+            )
 
             const url = new URL("https://api.kick.com/public/v1/channels")
             url.searchParams.append("slug", request.videoId)
@@ -28,7 +35,7 @@ export function createKickVideosClient(
             try {
                 response = await fetch(url, {
                     headers: {
-                        Authorization: `Bearer ${options.accessToken}`,
+                        Authorization: `Bearer ${appAccessToken}`,
                     },
                 })
             } catch (error) {

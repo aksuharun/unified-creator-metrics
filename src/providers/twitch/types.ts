@@ -3,7 +3,17 @@ import type {
     ChannelMetricsRequest as SharedChannelMetricsRequest,
     ChatListener,
     ChatMessage as SharedChatMessage,
+    VideoMetrics as SharedVideoMetrics,
+    VideoMetricsRequest as SharedVideoMetricsRequest,
+    DeleteMessageResult,
+    SendMessageResult,
+    BanUserResult,
+    TimeoutUserResult,
+    UnbanUserResult,
 } from "../../types.js"
+import type { TwitchUserTokenUpdate } from "./auth.js"
+
+export type { TwitchUserTokenUpdate } from "./auth.js"
 
 /**
  * Configuration required to create a Twitch provider client.
@@ -12,22 +22,57 @@ export type TwitchClientConfig = {
     /**
      * Twitch application client id.
      */
-    clientId: string | undefined
+    clientId?: string
 
     /**
-     * Twitch access token.
+     * Twitch application client secret.
      *
-     * `channels.resolve()` works with an app or user access token.
-     * `channels.getMetrics()` for follower counts requires a user access token.
-     * `chat.listen()` requires a user access token with `user:read:chat`.
+     * Required when `userRefreshToken` is provided.
      */
-    accessToken: string | undefined
+    clientSecret?: string
+
+    /**
+     * Twitch app access token used for read-only application-authenticated
+     * requests such as `channels.resolve()`.
+     */
+    appAccessToken?: string
+
+    /**
+     * Twitch user access token used for user-authenticated features such as
+     * `channels.getMetrics()` and `chat.listen()`.
+     */
+    userAccessToken?: string
+
+    /**
+     * Twitch refresh token used to obtain and rotate `userAccessToken`
+     * automatically.
+     */
+    userRefreshToken?: string
+
+    /**
+     * Called whenever the library refreshes the Twitch user token pair.
+     * Persist the returned refresh token because Twitch may rotate it.
+     */
+    onUserTokenUpdate?: (
+        tokens: TwitchUserTokenUpdate,
+    ) => void | Promise<void>
+
+    /**
+     * @deprecated Prefer `appAccessToken` and `userAccessToken`. When provided,
+     * this value is used as a fallback for features that need either token kind.
+     */
+    accessToken?: string
 }
 
 /**
  * Twitch-supported public channel metrics.
  */
 export type TwitchChannelMetric = "followers"
+
+/**
+ * Twitch-supported public video metrics.
+ */
+export type TwitchVideoMetric = "concurrentViewers"
 
 export type ChannelMetricsRequest = Omit<SharedChannelMetricsRequest, "metrics"> & {
     /**
@@ -38,10 +83,24 @@ export type ChannelMetricsRequest = Omit<SharedChannelMetricsRequest, "metrics">
     metrics: TwitchChannelMetric[]
 }
 
+export type VideoMetricsRequest = Omit<SharedVideoMetricsRequest, "metrics"> & {
+    /**
+     * Twitch broadcaster id used to look up the active livestream.
+     */
+    videoId: string
+
+    metrics: TwitchVideoMetric[]
+}
+
 /**
  * Normalized channel metrics returned by the Twitch provider.
  */
 export type ChannelMetrics = SharedChannelMetrics<"twitch">
+
+/**
+ * Normalized video metrics returned by the Twitch provider.
+ */
+export type VideoMetrics = SharedVideoMetrics<"twitch">
 
 /**
  * Request to resolve a Twitch broadcaster id from a login.
@@ -98,16 +157,35 @@ export type TwitchChannelResolveResult = {
  */
 export type TwitchChannelsClient = {
     /**
-   * Resolve a Twitch broadcaster id from a login.
-   */
+     * Resolve a Twitch broadcaster id from a login.
+     *
+     * Requires `appAccessToken` or `userAccessToken` on the provider config.
+     */
     resolve(
         request: TwitchChannelResolveRequest,
     ): Promise<TwitchChannelResolveResult>
 
     /**
-   * Fetch normalized channel metrics from the Twitch Helix API.
-   */
+     * Fetch normalized channel metrics from the Twitch Helix API.
+     *
+     * Requires `userAccessToken` on the provider config.
+     */
     getMetrics(request: ChannelMetricsRequest): Promise<ChannelMetrics>
+}
+
+/**
+ * Twitch video metric methods.
+ */
+export type TwitchVideosClient = {
+    /**
+     * Fetch normalized livestream metrics from the Twitch Helix Streams API.
+     *
+     * Accepts a Twitch broadcaster id in `videoId` and returns
+     * `concurrentViewers` for the active stream when live.
+     *
+     * Requires `appAccessToken` or `userAccessToken` on the provider config.
+     */
+    getMetrics(request: VideoMetricsRequest): Promise<VideoMetrics>
 }
 
 /**
@@ -251,9 +329,117 @@ export type TwitchChatListener = Omit<
 export type TwitchChatClient = {
     /**
      * Listen for normalized Twitch chat message events.
+     *
+     * Requires `userAccessToken` with the `user:read:chat` scope on the
+     * provider config.
      */
     listen(request: TwitchChatListenRequest): TwitchChatListener
+
+    /**
+     * Send a normalized text message to the specified Twitch chat room.
+     *
+     * Requires `userAccessToken` with the `user:write:chat` scope on the
+     * provider config.
+     */
+    sendMessage(
+        request: TwitchSendMessageRequest,
+    ): Promise<TwitchSendMessageResult>
+
+    /**
+     * Delete a specific Twitch chat message.
+     *
+     * Requires `userAccessToken` with the `moderator:manage:chat_messages`
+     * scope on the provider config.
+     */
+    deleteMessage(
+        request: TwitchDeleteMessageRequest,
+    ): Promise<TwitchDeleteMessageResult>
+
+    /**
+     * Permanently ban a user from a Twitch chat room.
+     *
+     * Requires `userAccessToken` with the `moderator:manage:banned_users`
+     * scope on the provider config.
+     */
+    banUser(request: TwitchBanUserRequest): Promise<TwitchBanUserResult>
+
+    /**
+     * Temporarily ban a user from a Twitch chat room.
+     *
+     * Requires `userAccessToken` with the `moderator:manage:banned_users`
+     * scope on the provider config.
+     */
+    timeoutUser(
+        request: TwitchTimeoutUserRequest,
+    ): Promise<TwitchTimeoutUserResult>
+
+    /**
+     * Remove a Twitch ban or timeout for a user.
+     *
+     * Requires `userAccessToken` with the `moderator:manage:banned_users`
+     * scope on the provider config.
+     */
+    unbanUser(request: TwitchUnbanUserRequest): Promise<TwitchUnbanUserResult>
 }
+
+export type TwitchSendMessageRequest = {
+    /**
+     * Twitch broadcaster id for the destination chat room.
+     */
+    broadcasterId: string
+
+    /**
+     * Message text to send.
+     */
+    text: string
+
+    /**
+     * Optional Twitch parent message id when sending a reply.
+     */
+    replyParentMessageId?: string
+
+    /**
+     * Include the provider-native response on the result.
+     */
+    includeRaw?: boolean
+}
+
+export type TwitchSendMessageResult = SendMessageResult<"twitch">
+
+export type TwitchDeleteMessageRequest = {
+    broadcasterId: string
+    messageId: string
+    includeRaw?: boolean
+}
+
+export type TwitchDeleteMessageResult = DeleteMessageResult<"twitch">
+
+export type TwitchBanUserRequest = {
+    broadcasterId: string
+    userId: string
+    reason?: string
+    includeRaw?: boolean
+}
+
+export type TwitchBanUserResult = BanUserResult<"twitch">
+
+export type TwitchTimeoutUserRequest = {
+    broadcasterId: string
+    userId: string
+    durationSeconds: number
+    reason?: string
+    includeRaw?: boolean
+}
+
+export type TwitchTimeoutUserResult = TimeoutUserResult<"twitch">
+
+export type TwitchUnbanUserRequest = {
+    broadcasterId: string
+    userId: string
+    includeRaw?: boolean
+}
+
+export type TwitchUnbanUserResult = UnbanUserResult<"twitch">
 
 /**
  * Twitch provider client.
@@ -268,6 +454,11 @@ export type TwitchClient = {
      * Channel-related methods.
      */
     channels: TwitchChannelsClient
+
+    /**
+     * Video-related methods.
+     */
+    videos: TwitchVideosClient
 
     /**
      * Chat-related methods.

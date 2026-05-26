@@ -2,18 +2,33 @@ import { ChatListenerEmitter } from "../../chat-listener.js"
 import { PlatformApiError, PlatformValidationError } from "../../errors.js"
 import { RecentIdTracker } from "../../recent-message-ids.js"
 import type { ChatMessage } from "../../types.js"
+import {
+    createKickUserAccessTokenProvider,
+    type KickUserAccessTokenProvider,
+} from "./auth.js"
 import { KICK_PLATFORM } from "./constants.js"
+import {
+    requireKickAppAccessToken,
+} from "./validation.js"
 import type {
+    KickBanUserRequest,
+    KickBanUserResult,
     KickChatClient,
     KickChatListenRequest,
     KickChatListener,
     KickChatStartResult,
+    KickDeleteMessageRequest,
+    KickDeleteMessageResult,
     KickEventSubscription,
     KickNodeWebhookRequest,
     KickSendMessageRequest,
     KickSendMessageResult,
     KickStopOptions,
     KickSubscriptionMode,
+    KickTimeoutUserRequest,
+    KickTimeoutUserResult,
+    KickUnbanUserRequest,
+    KickUnbanUserResult,
     KickWebhookRequest,
     KickWebhookResult,
 } from "./types.js"
@@ -22,9 +37,14 @@ const KICK_API_BASE_URL = "https://api.kick.com"
 const KICK_CHAT_MESSAGE_EVENT = "chat.message.sent"
 const KICK_CHAT_MESSAGE_EVENT_VERSION = 1
 const DEFAULT_MAX_RECENT_MESSAGE_IDS = 1000
+const KICK_TIMEOUT_MINUTES_MIN = 1
+const KICK_TIMEOUT_MINUTES_MAX = 10080
+const SECONDS_PER_MINUTE = 60
 
 type KickChatClientOptions = {
-    accessToken: string
+    appAccessToken?: string
+    userAccessToken?: string
+    userAccessTokenProvider?: KickUserAccessTokenProvider
 }
 
 type KickChatMessagePayload = {
@@ -94,20 +114,46 @@ type KickSendMessageResponse = {
     message?: string
 }
 
+type KickModerationBanResponse = {
+    data?: {
+        id?: string | number | null
+        expires_at?: string | null
+    } | null
+    message?: string
+}
+
 /**
  * Create the Kick chat capability object exposed as `kick.chat`.
  */
 export function createKickChatClient(
     options: KickChatClientOptions,
 ): KickChatClient {
+    const userAccessTokenProvider =
+        options.userAccessTokenProvider ??
+        createKickUserAccessTokenProvider({
+            accessToken: options.userAccessToken,
+        })
+
     return {
         listen(request: KickChatListenRequest = {}) {
-            return new KickChatListenerImpl(options, request)
+            const appAccessToken = requireKickAppAccessToken(
+                options.appAccessToken,
+                "chat.listen()",
+            )
+
+            return new KickChatListenerImpl({ appAccessToken }, request)
         },
         async sendMessage(
             request: KickSendMessageRequest,
         ): Promise<KickSendMessageResult> {
             validateKickSendMessageRequest(request)
+            const resolvedUserAccessTokenProvider =
+                requireKickUserAccessTokenProvider(
+                    userAccessTokenProvider,
+                    "chat.sendMessage()",
+                )
+            const userAccessToken =
+                await resolvedUserAccessTokenProvider.getAccessToken()
 
             const messageType = request.type ?? "user"
             const broadcasterUserId =
@@ -115,7 +161,8 @@ export function createKickChatClient(
                     ? request.broadcasterUserId
                     : undefined
             const payload = await kickRequest<KickSendMessageResponse>("/public/v1/chat", {
-                accessToken: options.accessToken,
+                accessToken: userAccessToken,
+                accessTokenProvider: resolvedUserAccessTokenProvider,
                 method: "POST",
                 body: JSON.stringify({
                     content: request.text,
@@ -132,6 +179,129 @@ export function createKickChatClient(
                     payload.data?.id ?? payload.data?.message_id,
                 ),
                 sentAt: normalizeDate(payload.data?.created_at ?? undefined),
+                ...(request.includeRaw ? { raw: payload } : {}),
+            }
+        },
+        async deleteMessage(
+            request: KickDeleteMessageRequest,
+        ): Promise<KickDeleteMessageResult> {
+            validateKickDeleteMessageRequest(request)
+            const resolvedUserAccessTokenProvider =
+                requireKickUserAccessTokenProvider(
+                    userAccessTokenProvider,
+                    "chat.deleteMessage()",
+                )
+            const userAccessToken =
+                await resolvedUserAccessTokenProvider.getAccessToken()
+            const payload = await kickRequest<unknown>(
+                `/public/v1/chat/${encodeURIComponent(request.messageId)}`,
+                {
+                    accessToken: userAccessToken,
+                    accessTokenProvider: resolvedUserAccessTokenProvider,
+                    method: "DELETE",
+                },
+            )
+
+            return {
+                platform: KICK_PLATFORM,
+                messageId: request.messageId,
+                ...(request.includeRaw ? { raw: payload } : {}),
+            }
+        },
+        async banUser(request: KickBanUserRequest): Promise<KickBanUserResult> {
+            validateKickBanUserRequest(request)
+            const resolvedUserAccessTokenProvider =
+                requireKickUserAccessTokenProvider(
+                    userAccessTokenProvider,
+                    "chat.banUser()",
+                )
+            const userAccessToken =
+                await resolvedUserAccessTokenProvider.getAccessToken()
+            const payload = await kickRequest<KickModerationBanResponse>(
+                "/public/v1/moderation/bans",
+                {
+                    accessToken: userAccessToken,
+                    accessTokenProvider: resolvedUserAccessTokenProvider,
+                    method: "POST",
+                    body: JSON.stringify({
+                        broadcaster_user_id: request.broadcasterUserId,
+                        user_id: request.userId,
+                        ...(request.reason ? { reason: request.reason } : {}),
+                    }),
+                },
+            )
+
+            return {
+                platform: KICK_PLATFORM,
+                userId: String(request.userId),
+                banId: stringifyNullable(payload.data?.id),
+                expiresAt: normalizeNullableDate(payload.data?.expires_at),
+                ...(request.includeRaw ? { raw: payload } : {}),
+            }
+        },
+        async timeoutUser(
+            request: KickTimeoutUserRequest,
+        ): Promise<KickTimeoutUserResult> {
+            validateKickTimeoutUserRequest(request)
+            const resolvedUserAccessTokenProvider =
+                requireKickUserAccessTokenProvider(
+                    userAccessTokenProvider,
+                    "chat.timeoutUser()",
+                )
+            const userAccessToken =
+                await resolvedUserAccessTokenProvider.getAccessToken()
+            const durationMinutes = request.durationSeconds / SECONDS_PER_MINUTE
+            const payload = await kickRequest<KickModerationBanResponse>(
+                "/public/v1/moderation/bans",
+                {
+                    accessToken: userAccessToken,
+                    accessTokenProvider: resolvedUserAccessTokenProvider,
+                    method: "POST",
+                    body: JSON.stringify({
+                        broadcaster_user_id: request.broadcasterUserId,
+                        user_id: request.userId,
+                        duration: durationMinutes,
+                        ...(request.reason ? { reason: request.reason } : {}),
+                    }),
+                },
+            )
+
+            return {
+                platform: KICK_PLATFORM,
+                userId: String(request.userId),
+                banId: stringifyNullable(payload.data?.id),
+                durationSeconds: request.durationSeconds,
+                expiresAt:
+                    normalizeNullableDate(payload.data?.expires_at) ??
+                    new Date(Date.now() + request.durationSeconds * 1000).toISOString(),
+                ...(request.includeRaw ? { raw: payload } : {}),
+            }
+        },
+        async unbanUser(
+            request: KickUnbanUserRequest,
+        ): Promise<KickUnbanUserResult> {
+            validateKickUnbanUserRequest(request)
+            const resolvedUserAccessTokenProvider =
+                requireKickUserAccessTokenProvider(
+                    userAccessTokenProvider,
+                    "chat.unbanUser()",
+                )
+            const userAccessToken =
+                await resolvedUserAccessTokenProvider.getAccessToken()
+            const payload = await kickRequest<unknown>("/public/v1/moderation/bans", {
+                accessToken: userAccessToken,
+                accessTokenProvider: resolvedUserAccessTokenProvider,
+                method: "DELETE",
+                body: JSON.stringify({
+                    broadcaster_user_id: request.broadcasterUserId,
+                    user_id: request.userId,
+                }),
+            })
+
+            return {
+                platform: KICK_PLATFORM,
+                userId: String(request.userId),
+                banId: null,
                 ...(request.includeRaw ? { raw: payload } : {}),
             }
         },
@@ -189,6 +359,106 @@ function validateKickSendMessageRequest(
     }
 }
 
+function validateKickDeleteMessageRequest(
+    request: KickDeleteMessageRequest,
+): asserts request is KickDeleteMessageRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError(
+            "Kick delete message request is required.",
+            { platform: KICK_PLATFORM },
+        )
+    }
+
+    if (!request.messageId || typeof request.messageId !== "string") {
+        throw new PlatformValidationError(
+            "messageId is required and must be a string.",
+            { platform: KICK_PLATFORM },
+        )
+    }
+}
+
+function validateKickBanUserRequest(
+    request: KickBanUserRequest,
+): asserts request is KickBanUserRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Kick ban user request is required.", {
+            platform: KICK_PLATFORM,
+        })
+    }
+
+    validateKickPositiveInteger(request.broadcasterUserId, "broadcasterUserId")
+    validateKickPositiveInteger(request.userId, "userId")
+
+    if (
+        request.reason !== undefined &&
+        (typeof request.reason !== "string" || request.reason.trim().length === 0)
+    ) {
+        throw new PlatformValidationError(
+            "reason must be a non-empty string when provided.",
+            { platform: KICK_PLATFORM },
+        )
+    }
+}
+
+function validateKickTimeoutUserRequest(
+    request: KickTimeoutUserRequest,
+): asserts request is KickTimeoutUserRequest {
+    validateKickBanUserRequest(request)
+
+    if (
+        !Number.isInteger(request.durationSeconds) ||
+        request.durationSeconds <= 0
+    ) {
+        throw new PlatformValidationError(
+            "durationSeconds is required and must be a positive integer.",
+            { platform: KICK_PLATFORM },
+        )
+    }
+
+    if (request.durationSeconds % SECONDS_PER_MINUTE !== 0) {
+        throw new PlatformValidationError(
+            "Kick timeout durationSeconds must be a whole number of minutes.",
+            { platform: KICK_PLATFORM },
+        )
+    }
+
+    const durationMinutes = request.durationSeconds / SECONDS_PER_MINUTE
+
+    if (
+        durationMinutes < KICK_TIMEOUT_MINUTES_MIN ||
+        durationMinutes > KICK_TIMEOUT_MINUTES_MAX
+    ) {
+        throw new PlatformValidationError(
+            `Kick timeout durationSeconds must be between ${
+                KICK_TIMEOUT_MINUTES_MIN * SECONDS_PER_MINUTE
+            } and ${KICK_TIMEOUT_MINUTES_MAX * SECONDS_PER_MINUTE}.`,
+            { platform: KICK_PLATFORM },
+        )
+    }
+}
+
+function validateKickUnbanUserRequest(
+    request: KickUnbanUserRequest,
+): asserts request is KickUnbanUserRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Kick unban user request is required.", {
+            platform: KICK_PLATFORM,
+        })
+    }
+
+    validateKickPositiveInteger(request.broadcasterUserId, "broadcasterUserId")
+    validateKickPositiveInteger(request.userId, "userId")
+}
+
+function validateKickPositiveInteger(value: number, field: string): void {
+    if (!Number.isInteger(value) || value <= 0) {
+        throw new PlatformValidationError(
+            `${field} must be a positive integer.`,
+            { platform: KICK_PLATFORM },
+        )
+    }
+}
+
 /**
  * Kick chat listener implementation backed by webhook delivery.
  */
@@ -207,7 +477,7 @@ class KickChatListenerImpl
     private cachedPublicKey?: string
 
     constructor(
-        private readonly options: KickChatClientOptions,
+        private readonly options: { appAccessToken: string },
         private readonly request: KickChatListenRequest,
     ) {
         super()
@@ -461,7 +731,7 @@ class KickChatListenerImpl
         const payload = await kickRequest<KickPublicKeyResponse>(
             "/public/v1/public-key",
             {
-                accessToken: this.options.accessToken,
+                accessToken: this.options.appAccessToken,
             },
         )
         const publicKey = payload.data?.public_key
@@ -492,7 +762,7 @@ class KickChatListenerImpl
         }
 
         const payload = await kickRequest<KickEventSubscriptionsResponse>(url, {
-            accessToken: this.options.accessToken,
+            accessToken: this.options.appAccessToken,
         })
 
         return (payload.data ?? []).map(normalizeKickEventSubscription)
@@ -505,7 +775,7 @@ class KickChatListenerImpl
         const payload = await kickRequest<KickPostEventSubscriptionsResponse>(
             "/public/v1/events/subscriptions",
             {
-                accessToken: this.options.accessToken,
+                accessToken: this.options.appAccessToken,
                 method: "POST",
                 body: JSON.stringify({
                     ...(this.request.broadcasterUserId !== undefined
@@ -558,7 +828,7 @@ class KickChatListenerImpl
         }
 
         await kickRequest(url, {
-            accessToken: this.options.accessToken,
+            accessToken: this.options.appAccessToken,
             method: "DELETE",
         })
     }
@@ -571,6 +841,7 @@ async function kickRequest<TPayload>(
     pathOrUrl: string | URL,
     options: {
         accessToken: string
+        accessTokenProvider?: KickUserAccessTokenProvider
         method?: string
         body?: string
     },
@@ -580,22 +851,32 @@ async function kickRequest<TPayload>(
             ? pathOrUrl
             : new URL(pathOrUrl, KICK_API_BASE_URL)
 
-    let response: Response
+    const runRequest = async (accessToken: string): Promise<Response> => {
+        try {
+            return await fetch(url, {
+                method: options.method,
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    ...(options.body
+                        ? { "Content-Type": "application/json" }
+                        : {}),
+                },
+                body: options.body,
+            })
+        } catch (error) {
+            throw new PlatformApiError("Kick API request failed.", {
+                platform: KICK_PLATFORM,
+                cause: error,
+            })
+        }
+    }
 
-    try {
-        response = await fetch(url, {
-            method: options.method,
-            headers: {
-                Authorization: `Bearer ${options.accessToken}`,
-                ...(options.body ? { "Content-Type": "application/json" } : {}),
-            },
-            body: options.body,
-        })
-    } catch (error) {
-        throw new PlatformApiError("Kick API request failed.", {
-            platform: KICK_PLATFORM,
-            cause: error,
-        })
+    let response = await runRequest(options.accessToken)
+
+    if (response.status === 401 && options.accessTokenProvider?.canRefresh) {
+        response = await runRequest(
+            await options.accessTokenProvider.refreshAccessToken(),
+        )
     }
 
     const text = await response.text()
@@ -610,6 +891,22 @@ async function kickRequest<TPayload>(
     }
 
     return payload as TPayload
+}
+
+function requireKickUserAccessTokenProvider(
+    provider: KickUserAccessTokenProvider | undefined,
+    feature: string,
+): KickUserAccessTokenProvider {
+    if (provider) {
+        return provider
+    }
+
+    throw new PlatformValidationError(
+        `Kick userAccessToken is required for ${feature}.`,
+        {
+            platform: KICK_PLATFORM,
+        },
+    )
 }
 
 /**
@@ -785,6 +1082,16 @@ function normalizeDate(value: string | undefined): string {
     return Number.isNaN(timestamp)
         ? new Date().toISOString()
         : new Date(timestamp).toISOString()
+}
+
+function normalizeNullableDate(value: string | null | undefined): string | null {
+    if (!value) {
+        return null
+    }
+
+    const timestamp = Date.parse(value)
+
+    return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString()
 }
 
 /**

@@ -1,13 +1,20 @@
 import type {
     ChannelMetrics as SharedChannelMetrics,
     ChannelMetricsRequest as SharedChannelMetricsRequest,
+    DeleteMessageResult,
+    BanUserResult,
     ChatListener,
     ChatMessage as SharedChatMessage,
+    TimeoutUserResult,
+    UnbanUserResult,
     VideoMetrics as SharedVideoMetrics,
     VideoMetricsRequest as SharedVideoMetricsRequest,
     SendMessageResult,
 } from "../../types.js"
 import type { GoogleYoutubeAuthClient } from "./google-client.js"
+import type { YoutubeTokenRefreshResult } from "./auth.js"
+
+export type { YoutubeTokenRefreshResult } from "./auth.js"
 
 /**
  * Configuration required to create a YouTube provider client.
@@ -27,6 +34,34 @@ export type YoutubeClientConfig = {
      * Raw OAuth 2.0 access token string.
      */
     accessToken?: string
+
+    /**
+     * Google OAuth application client id.
+     *
+     * Required together with `clientSecret` when `refreshToken` is provided.
+     */
+    clientId?: string
+
+    /**
+     * Google OAuth application client secret.
+     *
+     * Required together with `clientId` when `refreshToken` is provided.
+     */
+    clientSecret?: string
+
+    /**
+     * Google OAuth refresh token used to obtain new YouTube access tokens
+     * without an interactive login.
+     */
+    refreshToken?: string
+
+    /**
+     * Called whenever the internally managed Google OAuth client receives new
+     * token material.
+     */
+    onTokenUpdate?: (
+        tokens: YoutubeTokenRefreshResult,
+    ) => void | Promise<void>
 }
 
 /**
@@ -233,6 +268,89 @@ export type YoutubeSendMessageRequest = {
 export type YoutubeSendMessageResult = SendMessageResult<"youtube">
 
 /**
+ * Request to delete a YouTube live chat message.
+ */
+export type YoutubeDeleteMessageRequest = {
+    /**
+     * YouTube live chat message id.
+     */
+    messageId: string
+
+    /**
+     * Include the provider-native delete response on the result.
+     */
+    includeRaw?: boolean
+}
+
+export type YoutubeDeleteMessageResult = DeleteMessageResult<"youtube">
+
+/**
+ * Request to permanently ban a user from a YouTube live chat.
+ */
+export type YoutubeBanUserRequest = {
+    /**
+     * YouTube active live chat id.
+     */
+    liveChatId: string
+
+    /**
+     * YouTube channel id of the user to ban.
+     */
+    userId: string
+
+    /**
+     * Include the provider-native insert response on the result.
+     */
+    includeRaw?: boolean
+}
+
+export type YoutubeBanUserResult = BanUserResult<"youtube">
+
+/**
+ * Request to temporarily ban a user from a YouTube live chat.
+ */
+export type YoutubeTimeoutUserRequest = {
+    /**
+     * YouTube active live chat id.
+     */
+    liveChatId: string
+
+    /**
+     * YouTube channel id of the user to timeout.
+     */
+    userId: string
+
+    /**
+     * Timeout duration in seconds.
+     */
+    durationSeconds: number
+
+    /**
+     * Include the provider-native insert response on the result.
+     */
+    includeRaw?: boolean
+}
+
+export type YoutubeTimeoutUserResult = TimeoutUserResult<"youtube">
+
+/**
+ * Request to remove a YouTube live chat ban or timeout.
+ */
+export type YoutubeUnbanUserRequest = {
+    /**
+     * YouTube live chat ban id.
+     */
+    banId: string
+
+    /**
+     * Include the provider-native delete response on the result.
+     */
+    includeRaw?: boolean
+}
+
+export type YoutubeUnbanUserResult = UnbanUserResult<"youtube">
+
+/**
  * YouTube chat event methods.
  */
 export type YoutubeChatClient = {
@@ -247,6 +365,30 @@ export type YoutubeChatClient = {
     sendMessage(
         request: YoutubeSendMessageRequest,
     ): Promise<YoutubeSendMessageResult>
+
+    /**
+     * Delete a previously sent YouTube live chat message.
+     */
+    deleteMessage(
+        request: YoutubeDeleteMessageRequest,
+    ): Promise<YoutubeDeleteMessageResult>
+
+    /**
+     * Permanently ban a user from the specified YouTube live chat.
+     */
+    banUser(request: YoutubeBanUserRequest): Promise<YoutubeBanUserResult>
+
+    /**
+     * Temporarily ban a user from the specified YouTube live chat.
+     */
+    timeoutUser(
+        request: YoutubeTimeoutUserRequest,
+    ): Promise<YoutubeTimeoutUserResult>
+
+    /**
+     * Remove a previously created YouTube live chat ban or timeout.
+     */
+    unbanUser(request: YoutubeUnbanUserRequest): Promise<YoutubeUnbanUserResult>
 }
 
 /**

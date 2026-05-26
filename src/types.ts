@@ -289,3 +289,78 @@ export type SendMessageResult<TPlatform extends Platform = Platform> = {
      */
     raw?: unknown
 }
+
+/**
+ * Result returned after successfully deleting a chat message.
+ */
+export type DeleteMessageResult<TPlatform extends Platform = Platform> = {
+    /**
+     * Source platform identifier.
+     */
+    platform: TPlatform
+
+    /**
+     * Provider-specific unique identifier for the deleted message.
+     */
+    messageId: string
+
+    /**
+     * Raw provider response, only present when requested and supported.
+     */
+    raw?: unknown
+}
+
+type ModerationActionResult<TPlatform extends Platform = Platform> = {
+    /**
+     * Source platform identifier.
+     */
+    platform: TPlatform
+
+    /**
+     * Provider-specific unique identifier for the moderated user.
+     */
+    userId: string | null
+
+    /**
+     * Provider-specific unique identifier for the ban record when available.
+     */
+    banId: string | null
+
+    /**
+     * Raw provider response, only present when requested and supported.
+     */
+    raw?: unknown
+}
+
+/**
+ * Result returned after successfully banning a user.
+ */
+export type BanUserResult<TPlatform extends Platform = Platform> =
+    ModerationActionResult<TPlatform> & {
+        /**
+         * ISO timestamp for when the ban expires, or `null` for permanent bans.
+         */
+        expiresAt: string | null
+    }
+
+/**
+ * Result returned after successfully timing out a user.
+ */
+export type TimeoutUserResult<TPlatform extends Platform = Platform> =
+    ModerationActionResult<TPlatform> & {
+        /**
+         * Timeout duration in seconds.
+         */
+        durationSeconds: number
+
+        /**
+         * ISO timestamp for when the timeout expires.
+         */
+        expiresAt: string | null
+    }
+
+/**
+ * Result returned after successfully removing a ban or timeout.
+ */
+export type UnbanUserResult<TPlatform extends Platform = Platform> =
+    ModerationActionResult<TPlatform>

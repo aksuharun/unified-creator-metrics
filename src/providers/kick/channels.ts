@@ -3,6 +3,7 @@ import { KICK_PLATFORM } from "./constants.js"
 import type { KickChannelResponse } from "./normalize.js"
 import {
     normalizeKickSlug,
+    requireKickAppAccessToken,
     validateChannelResolveRequest,
 } from "./validation.js"
 import type {
@@ -11,7 +12,7 @@ import type {
 } from "./types.js"
 
 export type KickChannelsClientOptions = {
-    accessToken: string
+    appAccessToken?: string
 }
 
 export function createKickChannelsClient(
@@ -22,6 +23,10 @@ export function createKickChannelsClient(
             request: KickChannelResolveRequest,
         ): ReturnType<KickChannelsClient["resolve"]> {
             validateChannelResolveRequest(request)
+            const appAccessToken = requireKickAppAccessToken(
+                options.appAccessToken,
+                "channels.resolve()",
+            )
 
             const slug = normalizeKickSlug(request.slug)
             const url = new URL("https://api.kick.com/public/v1/channels")
@@ -32,7 +37,7 @@ export function createKickChannelsClient(
             try {
                 response = await fetch(url, {
                     headers: {
-                        Authorization: `Bearer ${options.accessToken}`,
+                        Authorization: `Bearer ${appAccessToken}`,
                     },
                 })
             } catch (error) {

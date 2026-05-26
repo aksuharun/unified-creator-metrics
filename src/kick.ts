@@ -1,8 +1,11 @@
 export { createKickClient } from "./providers/kick/index.js"
+export { refreshKickAccessToken } from "./providers/kick/auth.js"
 export type {
     KickChannelResolveRequest,
     KickChannelResolveResult,
     KickChannelsClient,
+    KickBanUserRequest,
+    KickBanUserResult,
     ChatMessage,
     KickChatClient,
     KickChatListenRequest,
@@ -10,6 +13,8 @@ export type {
     KickChatStartResult,
     KickClient,
     KickClientConfig,
+    KickDeleteMessageRequest,
+    KickDeleteMessageResult,
     KickEventSubscription,
     KickNodeWebhookRequest,
     KickSendBotMessageRequest,
@@ -19,6 +24,11 @@ export type {
     KickSendUserMessageRequest,
     KickStopOptions,
     KickSubscriptionMode,
+    KickTimeoutUserRequest,
+    KickTimeoutUserResult,
+    KickUnbanUserRequest,
+    KickUnbanUserResult,
+    KickUserTokenUpdate,
     KickVideoMetric,
     KickVideosClient,
     KickWebhookRequest,

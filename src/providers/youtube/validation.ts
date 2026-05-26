@@ -25,11 +25,32 @@ export function validateYoutubeConfig(
     const hasApiKey = "apiKey" in config && typeof config.apiKey === "string" && config.apiKey.length > 0
     const hasOauth2Client = "oauth2Client" in config && config.oauth2Client
     const hasAccessToken = "accessToken" in config && typeof config.accessToken === "string" && config.accessToken.length > 0
+    const hasRefreshToken =
+        "refreshToken" in config &&
+        typeof config.refreshToken === "string" &&
+        config.refreshToken.length > 0
+    const hasClientId =
+        "clientId" in config &&
+        typeof config.clientId === "string" &&
+        config.clientId.length > 0
+    const hasClientSecret =
+        "clientSecret" in config &&
+        typeof config.clientSecret === "string" &&
+        config.clientSecret.length > 0
 
-    if (!hasApiKey && !hasOauth2Client && !hasAccessToken) {
-        throw new PlatformValidationError("YouTube apiKey, oauth2Client, or accessToken is required.", {
+    if (!hasApiKey && !hasOauth2Client && !hasAccessToken && !hasRefreshToken) {
+        throw new PlatformValidationError("YouTube apiKey, oauth2Client, accessToken, or refreshToken is required.", {
             platform: YOUTUBE_PLATFORM,
         })
+    }
+
+    if (hasRefreshToken && (!hasClientId || !hasClientSecret)) {
+        throw new PlatformValidationError(
+            "YouTube clientId and clientSecret are required when refreshToken is provided.",
+            {
+                platform: YOUTUBE_PLATFORM,
+            },
+        )
     }
 }
 

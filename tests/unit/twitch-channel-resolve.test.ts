@@ -25,7 +25,7 @@ describe("createTwitchChannelsClient().resolve", () => {
 
         const channels = createTwitchChannelsClient({
             clientId: "twitch-client-id",
-            accessToken: "twitch-token",
+            appAccessToken: "twitch-token",
         })
         const result = await channels.resolve({
             login: "AksuHarun",
@@ -55,7 +55,7 @@ describe("createTwitchChannelsClient().resolve", () => {
         const fetchMock = vi.mocked(fetch)
         const channels = createTwitchChannelsClient({
             clientId: "twitch-client-id",
-            accessToken: "twitch-token",
+            appAccessToken: "twitch-token",
         })
 
         await expect(
@@ -73,7 +73,7 @@ describe("createTwitchChannelsClient().resolve", () => {
         )
         const channels = createTwitchChannelsClient({
             clientId: "twitch-client-id",
-            accessToken: "twitch-token",
+            appAccessToken: "twitch-token",
         })
 
         await expect(

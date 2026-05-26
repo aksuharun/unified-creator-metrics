@@ -1,8 +1,12 @@
 export {
+    createGoogleYoutubeAuthClient,
     createGoogleYoutubeClient,
     createYoutubeClient,
 } from "./providers/youtube/index.js"
+export { refreshYoutubeAccessToken } from "./providers/youtube/auth.js"
 export type {
+    YoutubeBanUserRequest,
+    YoutubeBanUserResult,
     ChannelMetrics,
     ChannelMetricsRequest,
     ChatMessage,
@@ -11,13 +15,20 @@ export type {
     YoutubeChatClient,
     YoutubeChatListenRequest,
     YoutubeChatListener,
+    YoutubeDeleteMessageRequest,
+    YoutubeDeleteMessageResult,
     YoutubeSendMessageRequest,
     YoutubeSendMessageResult,
     YoutubeChatStartResult,
+    YoutubeTimeoutUserRequest,
+    YoutubeTimeoutUserResult,
+    YoutubeUnbanUserRequest,
+    YoutubeUnbanUserResult,
     YoutubeChannelMetric,
     YoutubeChannelsClient,
     YoutubeClient,
     YoutubeClientConfig,
+    YoutubeTokenRefreshResult,
     VideoMetrics,
     VideoMetricsRequest,
     YoutubeVideoMetric,

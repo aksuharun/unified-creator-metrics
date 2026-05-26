@@ -24,6 +24,10 @@ export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient 
         apiKey: config.apiKey,
         oauth2Client: config.oauth2Client,
         accessToken: config.accessToken,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+        refreshToken: config.refreshToken,
+        onTokenUpdate: config.onTokenUpdate,
     })
 
     return {
@@ -40,4 +44,7 @@ export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient 
     }
 }
 
-export { createGoogleYoutubeClient } from "./google-client.js"
+export {
+    createGoogleYoutubeAuthClient,
+    createGoogleYoutubeClient,
+} from "./google-client.js"

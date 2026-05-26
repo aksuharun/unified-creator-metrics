@@ -5,12 +5,20 @@ import type { ChatMessage } from "../../types.js"
 import { YOUTUBE_PLATFORM } from "./constants.js"
 import type { GoogleYoutubeClient } from "./google-client.js"
 import type {
+    YoutubeBanUserRequest,
+    YoutubeBanUserResult,
     YoutubeChatClient,
     YoutubeChatListenRequest,
     YoutubeChatListener,
+    YoutubeDeleteMessageRequest,
+    YoutubeDeleteMessageResult,
+    YoutubeTimeoutUserRequest,
+    YoutubeTimeoutUserResult,
     YoutubeSendMessageRequest,
     YoutubeSendMessageResult,
     YoutubeChatStartResult,
+    YoutubeUnbanUserRequest,
+    YoutubeUnbanUserResult,
 } from "./types.js"
 
 type YoutubeChatClientOptions = {
@@ -47,6 +55,16 @@ type YoutubeLiveChatMessagesPayload = {
     nextPageToken?: string | null
     pollingIntervalMillis?: number | null
     offlineAt?: string | null
+}
+
+type YoutubeLiveChatBan = {
+    id?: string | null
+    snippet?: {
+        banDurationSeconds?: string | null
+        bannedUserDetails?: {
+            channelId?: string | null
+        } | null
+    } | null
 }
 
 /**
@@ -94,6 +112,134 @@ export function createYoutubeChatClient(
                 })
             }
         },
+        async deleteMessage(
+            request: YoutubeDeleteMessageRequest,
+        ): Promise<YoutubeDeleteMessageResult> {
+            validateYoutubeDeleteMessageRequest(request)
+
+            try {
+                const response =
+                    await options.youtubeApiClient.liveChatMessages.delete({
+                        id: request.messageId,
+                    })
+
+                return {
+                    platform: YOUTUBE_PLATFORM,
+                    messageId: request.messageId,
+                    ...(request.includeRaw ? { raw: response.data } : {}),
+                }
+            } catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                })
+            }
+        },
+        async banUser(
+            request: YoutubeBanUserRequest,
+        ): Promise<YoutubeBanUserResult> {
+            validateYoutubeBanUserRequest(request)
+
+            try {
+                const response = await options.youtubeApiClient.liveChatBans.insert({
+                    part: ["snippet"],
+                    requestBody: {
+                        snippet: {
+                            liveChatId: request.liveChatId,
+                            type: "permanent",
+                            bannedUserDetails: {
+                                channelId: request.userId,
+                            },
+                        },
+                    },
+                })
+                const payload = response.data as YoutubeLiveChatBan
+
+                return {
+                    platform: YOUTUBE_PLATFORM,
+                    userId:
+                        payload.snippet?.bannedUserDetails?.channelId ??
+                        request.userId,
+                    banId: payload.id ?? null,
+                    expiresAt: null,
+                    ...(request.includeRaw ? { raw: response.data } : {}),
+                }
+            } catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                })
+            }
+        },
+        async timeoutUser(
+            request: YoutubeTimeoutUserRequest,
+        ): Promise<YoutubeTimeoutUserResult> {
+            validateYoutubeTimeoutUserRequest(request)
+
+            try {
+                const response = await options.youtubeApiClient.liveChatBans.insert({
+                    part: ["snippet"],
+                    requestBody: {
+                        snippet: {
+                            liveChatId: request.liveChatId,
+                            type: "temporary",
+                            banDurationSeconds: String(request.durationSeconds),
+                            bannedUserDetails: {
+                                channelId: request.userId,
+                            },
+                        },
+                    },
+                })
+                const payload = response.data as YoutubeLiveChatBan
+
+                return {
+                    platform: YOUTUBE_PLATFORM,
+                    userId:
+                        payload.snippet?.bannedUserDetails?.channelId ??
+                        request.userId,
+                    banId: payload.id ?? null,
+                    durationSeconds: normalizePositiveInteger(
+                        payload.snippet?.banDurationSeconds,
+                    ) ?? request.durationSeconds,
+                    expiresAt: new Date(
+                        Date.now() + request.durationSeconds * 1000,
+                    ).toISOString(),
+                    ...(request.includeRaw ? { raw: response.data } : {}),
+                }
+            } catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                })
+            }
+        },
+        async unbanUser(
+            request: YoutubeUnbanUserRequest,
+        ): Promise<YoutubeUnbanUserResult> {
+            validateYoutubeUnbanUserRequest(request)
+
+            try {
+                const response = await options.youtubeApiClient.liveChatBans.delete({
+                    id: request.banId,
+                })
+
+                return {
+                    platform: YOUTUBE_PLATFORM,
+                    userId: null,
+                    banId: request.banId,
+                    ...(request.includeRaw ? { raw: response.data } : {}),
+                }
+            } catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                })
+            }
+        },
     }
 }
 
@@ -124,6 +270,104 @@ function validateYoutubeSendMessageRequest(
     ) {
         throw new PlatformValidationError(
             "Message text is required and must be a non-empty string.",
+            { platform: YOUTUBE_PLATFORM },
+        )
+    }
+}
+
+function validateYoutubeDeleteMessageRequest(
+    request: YoutubeDeleteMessageRequest,
+): asserts request is YoutubeDeleteMessageRequest {
+    validateYoutubeMessageIdRequest(
+        request,
+        "YouTube delete message request is required.",
+    )
+}
+
+function validateYoutubeBanUserRequest(
+    request: YoutubeBanUserRequest,
+): asserts request is YoutubeBanUserRequest {
+    validateYoutubeModerationTargetRequest(
+        request,
+        "YouTube ban user request is required.",
+    )
+}
+
+function validateYoutubeTimeoutUserRequest(
+    request: YoutubeTimeoutUserRequest,
+): asserts request is YoutubeTimeoutUserRequest {
+    validateYoutubeModerationTargetRequest(
+        request,
+        "YouTube timeout user request is required.",
+    )
+
+    if (
+        !Number.isInteger(request.durationSeconds) ||
+        request.durationSeconds <= 0
+    ) {
+        throw new PlatformValidationError(
+            "durationSeconds is required and must be a positive integer.",
+            { platform: YOUTUBE_PLATFORM },
+        )
+    }
+}
+
+function validateYoutubeUnbanUserRequest(
+    request: YoutubeUnbanUserRequest,
+): asserts request is YoutubeUnbanUserRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError(
+            "YouTube unban user request is required.",
+            { platform: YOUTUBE_PLATFORM },
+        )
+    }
+
+    if (!request.banId || typeof request.banId !== "string") {
+        throw new PlatformValidationError(
+            "banId is required and must be a string.",
+            { platform: YOUTUBE_PLATFORM },
+        )
+    }
+}
+
+function validateYoutubeMessageIdRequest(
+    request: YoutubeDeleteMessageRequest,
+    missingRequestMessage: string,
+): void {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError(missingRequestMessage, {
+            platform: YOUTUBE_PLATFORM,
+        })
+    }
+
+    if (!request.messageId || typeof request.messageId !== "string") {
+        throw new PlatformValidationError(
+            "messageId is required and must be a string.",
+            { platform: YOUTUBE_PLATFORM },
+        )
+    }
+}
+
+function validateYoutubeModerationTargetRequest(
+    request: YoutubeBanUserRequest | YoutubeTimeoutUserRequest,
+    missingRequestMessage: string,
+): void {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError(missingRequestMessage, {
+            platform: YOUTUBE_PLATFORM,
+        })
+    }
+
+    if (!request.liveChatId || typeof request.liveChatId !== "string") {
+        throw new PlatformValidationError(
+            "liveChatId is required and must be a string.",
+            { platform: YOUTUBE_PLATFORM },
+        )
+    }
+
+    if (!request.userId || typeof request.userId !== "string") {
+        throw new PlatformValidationError(
+            "userId is required and must be a string.",
             { platform: YOUTUBE_PLATFORM },
         )
     }
@@ -465,6 +709,20 @@ function normalizeDate(value: string | undefined): string {
     return Number.isNaN(timestamp)
         ? new Date().toISOString()
         : new Date(timestamp).toISOString()
+}
+
+function normalizePositiveInteger(value: string | undefined | null): number | null {
+    if (typeof value !== "string") {
+        return null
+    }
+
+    const normalizedValue = Number.parseInt(value, 10)
+
+    if (!Number.isInteger(normalizedValue) || normalizedValue <= 0) {
+        return null
+    }
+
+    return normalizedValue
 }
 
 /**

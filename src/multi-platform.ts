@@ -1,20 +1,25 @@
 import { ChatListenerEmitter } from "./chat-listener.js"
 import { PlatformValidationError } from "./errors.js"
 import type {
+    KickBanUserRequest,
     KickChannelResolveRequest,
     KickChannelResolveResult,
     KickChatStartResult,
     KickClient,
     KickChatListenRequest,
     KickChatListener,
+    KickDeleteMessageRequest,
     KickNodeWebhookRequest,
     KickSendMessageRequest,
     KickStopOptions,
+    KickTimeoutUserRequest,
+    KickUnbanUserRequest,
     KickWebhookRequest,
     KickWebhookResult,
     VideoMetricsRequest as KickVideoMetricsRequest,
 } from "./providers/kick/types.js"
 import type {
+    TwitchBanUserRequest,
     ChannelMetricsRequest as TwitchChannelMetricsRequest,
     TwitchChatListenRequest,
     TwitchChatListener,
@@ -22,24 +27,37 @@ import type {
     TwitchChannelResolveRequest,
     TwitchChannelResolveResult,
     TwitchClient,
+    TwitchDeleteMessageRequest,
+    TwitchSendMessageRequest,
     TwitchStopOptions,
+    TwitchTimeoutUserRequest,
+    TwitchUnbanUserRequest,
+    VideoMetricsRequest as TwitchVideoMetricsRequest,
 } from "./providers/twitch/types.js"
 import type {
+    BanUserResult,
     ChannelMetrics,
     ChatListener,
     ChatMessage,
+    DeleteMessageResult,
     Platform,
     SendMessageResult,
+    TimeoutUserResult,
+    UnbanUserResult,
     VideoMetrics,
 } from "./types.js"
 import type {
+    YoutubeBanUserRequest,
     ChannelMetricsRequest as YoutubeChannelMetricsRequest,
     YoutubeChannelResolveRequest,
     YoutubeChannelResolveResult,
     YoutubeChatListenRequest,
     YoutubeChatListener,
+    YoutubeDeleteMessageRequest,
     YoutubeSendMessageRequest,
     YoutubeChatStartResult,
+    YoutubeTimeoutUserRequest,
+    YoutubeUnbanUserRequest,
     VideoMetricsRequest as YoutubeVideoMetricsRequest,
     YoutubeClient,
 } from "./providers/youtube/types.js"
@@ -143,8 +161,17 @@ export type MultiPlatformKickVideoMetricsRequest = KickVideoMetricsRequest & {
     platform: Extract<Platform, "kick">
 }
 
+export type MultiPlatformTwitchVideoMetricsRequest =
+    TwitchVideoMetricsRequest & {
+        /**
+     * Platform to route the request to.
+     */
+        platform: Extract<Platform, "twitch">
+    }
+
 export type MultiPlatformVideoMetricsRequest =
     | MultiPlatformYoutubeVideoMetricsRequest
+    | MultiPlatformTwitchVideoMetricsRequest
     | MultiPlatformKickVideoMetricsRequest
 
 export type MultiPlatformVideoMetricsBatchRequest =
@@ -178,9 +205,88 @@ export type MultiPlatformKickSendMessageRequest = KickSendMessageRequest & {
     platform: Extract<Platform, "kick">
 }
 
+export type MultiPlatformTwitchSendMessageRequest = TwitchSendMessageRequest & {
+    platform: Extract<Platform, "twitch">
+}
+
 export type MultiPlatformSendMessageRequest =
     | MultiPlatformYoutubeSendMessageRequest
+    | MultiPlatformTwitchSendMessageRequest
     | MultiPlatformKickSendMessageRequest
+
+export type MultiPlatformYoutubeDeleteMessageRequest =
+    YoutubeDeleteMessageRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformKickDeleteMessageRequest =
+    KickDeleteMessageRequest & {
+        platform: Extract<Platform, "kick">
+    }
+
+export type MultiPlatformTwitchDeleteMessageRequest =
+    TwitchDeleteMessageRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformDeleteMessageRequest =
+    | MultiPlatformYoutubeDeleteMessageRequest
+    | MultiPlatformTwitchDeleteMessageRequest
+    | MultiPlatformKickDeleteMessageRequest
+
+export type MultiPlatformYoutubeBanUserRequest = YoutubeBanUserRequest & {
+    platform: Extract<Platform, "youtube">
+}
+
+export type MultiPlatformKickBanUserRequest = KickBanUserRequest & {
+    platform: Extract<Platform, "kick">
+}
+
+export type MultiPlatformTwitchBanUserRequest = TwitchBanUserRequest & {
+    platform: Extract<Platform, "twitch">
+}
+
+export type MultiPlatformBanUserRequest =
+    | MultiPlatformYoutubeBanUserRequest
+    | MultiPlatformTwitchBanUserRequest
+    | MultiPlatformKickBanUserRequest
+
+export type MultiPlatformYoutubeTimeoutUserRequest =
+    YoutubeTimeoutUserRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformKickTimeoutUserRequest =
+    KickTimeoutUserRequest & {
+        platform: Extract<Platform, "kick">
+    }
+
+export type MultiPlatformTwitchTimeoutUserRequest =
+    TwitchTimeoutUserRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformTimeoutUserRequest =
+    | MultiPlatformYoutubeTimeoutUserRequest
+    | MultiPlatformTwitchTimeoutUserRequest
+    | MultiPlatformKickTimeoutUserRequest
+
+export type MultiPlatformYoutubeUnbanUserRequest = YoutubeUnbanUserRequest & {
+    platform: Extract<Platform, "youtube">
+}
+
+export type MultiPlatformKickUnbanUserRequest = KickUnbanUserRequest & {
+    platform: Extract<Platform, "kick">
+}
+
+export type MultiPlatformTwitchUnbanUserRequest = TwitchUnbanUserRequest & {
+    platform: Extract<Platform, "twitch">
+}
+
+export type MultiPlatformUnbanUserRequest =
+    | MultiPlatformYoutubeUnbanUserRequest
+    | MultiPlatformTwitchUnbanUserRequest
+    | MultiPlatformKickUnbanUserRequest
 
 export type MultiPlatformYoutubeChatStartResult = YoutubeChatStartResult & {
     platform: Extract<Platform, "youtube">
@@ -265,6 +371,18 @@ export type MultiPlatformChatsClient = {
      * Route a standardized text message to the selected provider.
      */
     sendMessage(request: MultiPlatformSendMessageRequest): Promise<SendMessageResult>
+
+    deleteMessage(
+        request: MultiPlatformDeleteMessageRequest,
+    ): Promise<DeleteMessageResult>
+
+    banUser(request: MultiPlatformBanUserRequest): Promise<BanUserResult>
+
+    timeoutUser(
+        request: MultiPlatformTimeoutUserRequest,
+    ): Promise<TimeoutUserResult>
+
+    unbanUser(request: MultiPlatformUnbanUserRequest): Promise<UnbanUserResult>
 }
 
 /**
@@ -392,7 +510,31 @@ function createMultiPlatformChatsClient(
         return dispatchSendMessage(request, providers)
     }
 
-    return { listen, sendMessage }
+    async function deleteMessage(
+        request: MultiPlatformDeleteMessageRequest,
+    ): Promise<DeleteMessageResult> {
+        return dispatchDeleteMessage(request, providers)
+    }
+
+    async function banUser(
+        request: MultiPlatformBanUserRequest,
+    ): Promise<BanUserResult> {
+        return dispatchBanUser(request, providers)
+    }
+
+    async function timeoutUser(
+        request: MultiPlatformTimeoutUserRequest,
+    ): Promise<TimeoutUserResult> {
+        return dispatchTimeoutUser(request, providers)
+    }
+
+    async function unbanUser(
+        request: MultiPlatformUnbanUserRequest,
+    ): Promise<UnbanUserResult> {
+        return dispatchUnbanUser(request, providers)
+    }
+
+    return { listen, sendMessage, deleteMessage, banUser, timeoutUser, unbanUser }
 }
 
 function isChannelMetricsBatchRequest(
@@ -645,6 +787,23 @@ function dispatchVideoMetrics(
         })
     }
 
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.videos.getMetrics({
+            videoId: request.videoId,
+            metrics: request.metrics,
+            includeRaw: request.includeRaw,
+        })
+    }
+
     const provider = providers.kick
 
     if (!provider) {
@@ -712,12 +871,266 @@ function dispatchSendMessage(
         })
     }
 
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.sendMessage({
+            broadcasterId: request.broadcasterId,
+            text: request.text,
+            replyParentMessageId: request.replyParentMessageId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
     throw new PlatformValidationError(
         `Chat messages are not supported for platform "${String(
             (request as { platform?: unknown }).platform,
         )}".`,
         { platform: String((request as { platform?: unknown }).platform) },
     )
+}
+
+function dispatchDeleteMessage(
+    request: MultiPlatformDeleteMessageRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<DeleteMessageResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Delete message request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.deleteMessage({
+            messageId: request.messageId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.deleteMessage({
+            broadcasterId: request.broadcasterId,
+            messageId: request.messageId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    const provider = providers.kick
+
+    if (!provider) {
+        throw new PlatformValidationError(
+            `No provider client was configured for platform "${request.platform}".`,
+            { platform: request.platform },
+        )
+    }
+
+    return provider.chat.deleteMessage({
+        messageId: request.messageId,
+        includeRaw: request.includeRaw,
+    })
+}
+
+function dispatchBanUser(
+    request: MultiPlatformBanUserRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<BanUserResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Ban user request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.banUser({
+            liveChatId: request.liveChatId,
+            userId: request.userId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.banUser({
+            broadcasterId: request.broadcasterId,
+            userId: request.userId,
+            reason: request.reason,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    const provider = providers.kick
+
+    if (!provider) {
+        throw new PlatformValidationError(
+            `No provider client was configured for platform "${request.platform}".`,
+            { platform: request.platform },
+        )
+    }
+
+    return provider.chat.banUser({
+        broadcasterUserId: request.broadcasterUserId,
+        userId: request.userId,
+        reason: request.reason,
+        includeRaw: request.includeRaw,
+    })
+}
+
+function dispatchTimeoutUser(
+    request: MultiPlatformTimeoutUserRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<TimeoutUserResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Timeout user request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.timeoutUser({
+            liveChatId: request.liveChatId,
+            userId: request.userId,
+            durationSeconds: request.durationSeconds,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.timeoutUser({
+            broadcasterId: request.broadcasterId,
+            userId: request.userId,
+            durationSeconds: request.durationSeconds,
+            reason: request.reason,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    const provider = providers.kick
+
+    if (!provider) {
+        throw new PlatformValidationError(
+            `No provider client was configured for platform "${request.platform}".`,
+            { platform: request.platform },
+        )
+    }
+
+    return provider.chat.timeoutUser({
+        broadcasterUserId: request.broadcasterUserId,
+        userId: request.userId,
+        durationSeconds: request.durationSeconds,
+        reason: request.reason,
+        includeRaw: request.includeRaw,
+    })
+}
+
+function dispatchUnbanUser(
+    request: MultiPlatformUnbanUserRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<UnbanUserResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Unban user request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.unbanUser({
+            banId: request.banId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.unbanUser({
+            broadcasterId: request.broadcasterId,
+            userId: request.userId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    const provider = providers.kick
+
+    if (!provider) {
+        throw new PlatformValidationError(
+            `No provider client was configured for platform "${request.platform}".`,
+            { platform: request.platform },
+        )
+    }
+
+    return provider.chat.unbanUser({
+        broadcasterUserId: request.broadcasterUserId,
+        userId: request.userId,
+        includeRaw: request.includeRaw,
+    })
 }
 
 class MultiPlatformChatListenerImpl
