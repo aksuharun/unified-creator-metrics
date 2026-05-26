@@ -1,18 +1,19 @@
 import { PlatformApiError } from "../../errors.js";
 import { KICK_PLATFORM } from "./constants.js";
 import { normalizeKickVideoMetrics, } from "./normalize.js";
-import { validateVideoMetricsRequest } from "./validation.js";
+import { requireKickAppAccessToken, validateVideoMetricsRequest, } from "./validation.js";
 export function createKickVideosClient(options) {
     return {
         async getMetrics(request) {
             validateVideoMetricsRequest(request);
+            const appAccessToken = requireKickAppAccessToken(options.appAccessToken, "videos.getMetrics()");
             const url = new URL("https://api.kick.com/public/v1/channels");
             url.searchParams.append("slug", request.videoId);
             let response;
             try {
                 response = await fetch(url, {
                     headers: {
-                        Authorization: `Bearer ${options.accessToken}`,
+                        Authorization: `Bearer ${appAccessToken}`,
                     },
                 });
             }

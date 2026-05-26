@@ -41,6 +41,115 @@ export function createYoutubeChatClient(options) {
                 });
             }
         },
+        async deleteMessage(request) {
+            validateYoutubeDeleteMessageRequest(request);
+            try {
+                const response = await options.youtubeApiClient.liveChatMessages.delete({
+                    id: request.messageId,
+                });
+                return {
+                    platform: YOUTUBE_PLATFORM,
+                    messageId: request.messageId,
+                    ...(request.includeRaw ? { raw: response.data } : {}),
+                };
+            }
+            catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                });
+            }
+        },
+        async banUser(request) {
+            validateYoutubeBanUserRequest(request);
+            try {
+                const response = await options.youtubeApiClient.liveChatBans.insert({
+                    part: ["snippet"],
+                    requestBody: {
+                        snippet: {
+                            liveChatId: request.liveChatId,
+                            type: "permanent",
+                            bannedUserDetails: {
+                                channelId: request.userId,
+                            },
+                        },
+                    },
+                });
+                const payload = response.data;
+                return {
+                    platform: YOUTUBE_PLATFORM,
+                    userId: payload.snippet?.bannedUserDetails?.channelId ??
+                        request.userId,
+                    banId: payload.id ?? null,
+                    expiresAt: null,
+                    ...(request.includeRaw ? { raw: response.data } : {}),
+                };
+            }
+            catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                });
+            }
+        },
+        async timeoutUser(request) {
+            validateYoutubeTimeoutUserRequest(request);
+            try {
+                const response = await options.youtubeApiClient.liveChatBans.insert({
+                    part: ["snippet"],
+                    requestBody: {
+                        snippet: {
+                            liveChatId: request.liveChatId,
+                            type: "temporary",
+                            banDurationSeconds: String(request.durationSeconds),
+                            bannedUserDetails: {
+                                channelId: request.userId,
+                            },
+                        },
+                    },
+                });
+                const payload = response.data;
+                return {
+                    platform: YOUTUBE_PLATFORM,
+                    userId: payload.snippet?.bannedUserDetails?.channelId ??
+                        request.userId,
+                    banId: payload.id ?? null,
+                    durationSeconds: normalizePositiveInteger(payload.snippet?.banDurationSeconds) ?? request.durationSeconds,
+                    expiresAt: new Date(Date.now() + request.durationSeconds * 1000).toISOString(),
+                    ...(request.includeRaw ? { raw: response.data } : {}),
+                };
+            }
+            catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                });
+            }
+        },
+        async unbanUser(request) {
+            validateYoutubeUnbanUserRequest(request);
+            try {
+                const response = await options.youtubeApiClient.liveChatBans.delete({
+                    id: request.banId,
+                });
+                return {
+                    platform: YOUTUBE_PLATFORM,
+                    userId: null,
+                    banId: request.banId,
+                    ...(request.includeRaw ? { raw: response.data } : {}),
+                };
+            }
+            catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                });
+            }
+        },
     };
 }
 /**
@@ -57,6 +166,50 @@ function validateYoutubeSendMessageRequest(request) {
         typeof request.text !== "string" ||
         request.text.trim().length === 0) {
         throw new PlatformValidationError("Message text is required and must be a non-empty string.", { platform: YOUTUBE_PLATFORM });
+    }
+}
+function validateYoutubeDeleteMessageRequest(request) {
+    validateYoutubeMessageIdRequest(request, "YouTube delete message request is required.");
+}
+function validateYoutubeBanUserRequest(request) {
+    validateYoutubeModerationTargetRequest(request, "YouTube ban user request is required.");
+}
+function validateYoutubeTimeoutUserRequest(request) {
+    validateYoutubeModerationTargetRequest(request, "YouTube timeout user request is required.");
+    if (!Number.isInteger(request.durationSeconds) ||
+        request.durationSeconds <= 0) {
+        throw new PlatformValidationError("durationSeconds is required and must be a positive integer.", { platform: YOUTUBE_PLATFORM });
+    }
+}
+function validateYoutubeUnbanUserRequest(request) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("YouTube unban user request is required.", { platform: YOUTUBE_PLATFORM });
+    }
+    if (!request.banId || typeof request.banId !== "string") {
+        throw new PlatformValidationError("banId is required and must be a string.", { platform: YOUTUBE_PLATFORM });
+    }
+}
+function validateYoutubeMessageIdRequest(request, missingRequestMessage) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError(missingRequestMessage, {
+            platform: YOUTUBE_PLATFORM,
+        });
+    }
+    if (!request.messageId || typeof request.messageId !== "string") {
+        throw new PlatformValidationError("messageId is required and must be a string.", { platform: YOUTUBE_PLATFORM });
+    }
+}
+function validateYoutubeModerationTargetRequest(request, missingRequestMessage) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError(missingRequestMessage, {
+            platform: YOUTUBE_PLATFORM,
+        });
+    }
+    if (!request.liveChatId || typeof request.liveChatId !== "string") {
+        throw new PlatformValidationError("liveChatId is required and must be a string.", { platform: YOUTUBE_PLATFORM });
+    }
+    if (!request.userId || typeof request.userId !== "string") {
+        throw new PlatformValidationError("userId is required and must be a string.", { platform: YOUTUBE_PLATFORM });
     }
 }
 /**
@@ -317,6 +470,16 @@ function normalizeDate(value) {
     return Number.isNaN(timestamp)
         ? new Date().toISOString()
         : new Date(timestamp).toISOString();
+}
+function normalizePositiveInteger(value) {
+    if (typeof value !== "string") {
+        return null;
+    }
+    const normalizedValue = Number.parseInt(value, 10);
+    if (!Number.isInteger(normalizedValue) || normalizedValue <= 0) {
+        return null;
+    }
+    return normalizedValue;
 }
 /**
  * Best-effort extraction of an HTTP status code from Google API client errors.

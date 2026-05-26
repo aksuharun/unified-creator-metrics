@@ -1,7 +1,8 @@
 import { KICK_PLATFORM } from "./constants.js";
+import { createKickUserAccessTokenProvider } from "./auth.js";
 import { createKickChannelsClient } from "./channels.js";
 import { createKickChatClient } from "./chat.js";
-import { validateKickConfig } from "./validation.js";
+import { resolveKickClientTokens, validateKickConfig } from "./validation.js";
 import { createKickVideosClient } from "./videos.js";
 /**
  * Create a Kick provider client.
@@ -11,16 +12,25 @@ import { createKickVideosClient } from "./videos.js";
  */
 export function createKickClient(config) {
     validateKickConfig(config);
+    const tokens = resolveKickClientTokens(config);
+    const userAccessTokenProvider = createKickUserAccessTokenProvider({
+        accessToken: tokens.userAccessToken,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+        refreshToken: config.userRefreshToken,
+        onTokenUpdate: config.onUserTokenUpdate,
+    });
     return {
         platform: KICK_PLATFORM,
         channels: createKickChannelsClient({
-            accessToken: config.accessToken,
+            appAccessToken: tokens.appAccessToken,
         }),
         videos: createKickVideosClient({
-            accessToken: config.accessToken,
+            appAccessToken: tokens.appAccessToken,
         }),
         chat: createKickChatClient({
-            accessToken: config.accessToken,
+            appAccessToken: tokens.appAccessToken,
+            userAccessTokenProvider,
         }),
     };
 }

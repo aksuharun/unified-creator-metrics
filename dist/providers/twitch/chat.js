@@ -1,6 +1,7 @@
 import { ChatListenerEmitter } from "../../chat-listener.js";
 import { PlatformApiError, PlatformValidationError } from "../../errors.js";
 import { RecentIdTracker } from "../../recent-message-ids.js";
+import { createTwitchUserAccessTokenProvider, } from "./auth.js";
 import { TWITCH_PLATFORM } from "./constants.js";
 const TWITCH_API_BASE_URL = "https://api.twitch.tv/helix";
 const TWITCH_AUTH_BASE_URL = "https://id.twitch.tv/oauth2";
@@ -8,15 +9,179 @@ const TWITCH_EVENTSUB_WS_URL = "wss://eventsub.wss.twitch.tv/ws";
 const TWITCH_CHAT_MESSAGE_EVENT = "channel.chat.message";
 const TWITCH_CHAT_MESSAGE_EVENT_VERSION = "1";
 const TWITCH_CHAT_SCOPE = "user:read:chat";
+const TWITCH_CHAT_SEND_SCOPE = "user:write:chat";
+const TWITCH_CHAT_MODERATION_SCOPE = "moderator:manage:chat_messages";
+const TWITCH_BANNED_USERS_SCOPE = "moderator:manage:banned_users";
 const DEFAULT_MAX_RECENT_IDS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 /**
  * Create the Twitch chat capability object exposed as `twitch.chat`.
  */
 export function createTwitchChatClient(options) {
+    const userAccessTokenProvider = options.userAccessTokenProvider ??
+        createTwitchUserAccessTokenProvider({
+            accessToken: options.userAccessToken,
+            clientId: options.clientId,
+        });
     return {
         listen(request) {
-            return new TwitchChatListenerImpl(options, request);
+            const resolvedUserAccessTokenProvider = requireTwitchUserAccessTokenProvider(userAccessTokenProvider, "chat.listen()");
+            return new TwitchChatListenerImpl({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, request);
+        },
+        async sendMessage(request) {
+            validateTwitchSendMessageRequest(request);
+            const resolvedUserAccessTokenProvider = requireTwitchUserAccessTokenProvider(userAccessTokenProvider, "chat.sendMessage()");
+            const validatedToken = await validateTwitchUserAccessToken({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, {
+                feature: "chat.sendMessage()",
+                requiredScopes: [TWITCH_CHAT_SEND_SCOPE],
+            });
+            const payload = await twitchRequest({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, "/chat/messages", {
+                method: "POST",
+                body: JSON.stringify({
+                    broadcaster_id: request.broadcasterId,
+                    sender_id: validatedToken.userId,
+                    message: request.text,
+                    ...(request.replyParentMessageId
+                        ? {
+                            reply_parent_message_id: request.replyParentMessageId,
+                        }
+                        : {}),
+                }),
+            });
+            const result = payload.data?.[0];
+            if (!result) {
+                throw new PlatformApiError("Twitch send message response did not include data[0].", { platform: TWITCH_PLATFORM });
+            }
+            if (result.is_sent !== true) {
+                throw new PlatformApiError("Twitch accepted the chat message request but did not send it.", { platform: TWITCH_PLATFORM, cause: result.drop_reason });
+            }
+            return {
+                platform: TWITCH_PLATFORM,
+                messageId: result.message_id == null ? null : String(result.message_id),
+                sentAt: new Date().toISOString(),
+                ...(request.includeRaw ? { raw: payload } : {}),
+            };
+        },
+        async deleteMessage(request) {
+            validateTwitchDeleteMessageRequest(request);
+            const resolvedUserAccessTokenProvider = requireTwitchUserAccessTokenProvider(userAccessTokenProvider, "chat.deleteMessage()");
+            const validatedToken = await validateTwitchUserAccessToken({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, {
+                feature: "chat.deleteMessage()",
+                requiredScopes: [TWITCH_CHAT_MODERATION_SCOPE],
+            });
+            const url = new URL(`${TWITCH_API_BASE_URL}/moderation/chat`);
+            url.searchParams.set("broadcaster_id", request.broadcasterId);
+            url.searchParams.set("moderator_id", validatedToken.userId);
+            url.searchParams.set("message_id", request.messageId);
+            const payload = await twitchRequest({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, url, {
+                method: "DELETE",
+            });
+            return {
+                platform: TWITCH_PLATFORM,
+                messageId: request.messageId,
+                ...(request.includeRaw ? { raw: payload } : {}),
+            };
+        },
+        async banUser(request) {
+            validateTwitchBanUserRequest(request);
+            const resolvedUserAccessTokenProvider = requireTwitchUserAccessTokenProvider(userAccessTokenProvider, "chat.banUser()");
+            const validatedToken = await validateTwitchUserAccessToken({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, {
+                feature: "chat.banUser()",
+                requiredScopes: [TWITCH_BANNED_USERS_SCOPE],
+            });
+            const payload = await twitchModerationBanRequest({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, {
+                broadcasterId: request.broadcasterId,
+                moderatorId: validatedToken.userId,
+                userId: request.userId,
+                reason: request.reason,
+            });
+            const result = payload.data?.[0];
+            return {
+                platform: TWITCH_PLATFORM,
+                userId: result?.user_id ?? request.userId,
+                banId: null,
+                expiresAt: normalizeNullableDate(result?.end_time ?? result?.expires_at ?? undefined),
+                ...(request.includeRaw ? { raw: payload } : {}),
+            };
+        },
+        async timeoutUser(request) {
+            validateTwitchTimeoutUserRequest(request);
+            const resolvedUserAccessTokenProvider = requireTwitchUserAccessTokenProvider(userAccessTokenProvider, "chat.timeoutUser()");
+            const validatedToken = await validateTwitchUserAccessToken({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, {
+                feature: "chat.timeoutUser()",
+                requiredScopes: [TWITCH_BANNED_USERS_SCOPE],
+            });
+            const payload = await twitchModerationBanRequest({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, {
+                broadcasterId: request.broadcasterId,
+                moderatorId: validatedToken.userId,
+                userId: request.userId,
+                durationSeconds: request.durationSeconds,
+                reason: request.reason,
+            });
+            const result = payload.data?.[0];
+            return {
+                platform: TWITCH_PLATFORM,
+                userId: result?.user_id ?? request.userId,
+                banId: null,
+                durationSeconds: request.durationSeconds,
+                expiresAt: normalizeNullableDate(result?.end_time ?? result?.expires_at ?? undefined) ??
+                    new Date(Date.now() + request.durationSeconds * 1000).toISOString(),
+                ...(request.includeRaw ? { raw: payload } : {}),
+            };
+        },
+        async unbanUser(request) {
+            validateTwitchUnbanUserRequest(request);
+            const resolvedUserAccessTokenProvider = requireTwitchUserAccessTokenProvider(userAccessTokenProvider, "chat.unbanUser()");
+            const validatedToken = await validateTwitchUserAccessToken({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, {
+                feature: "chat.unbanUser()",
+                requiredScopes: [TWITCH_BANNED_USERS_SCOPE],
+            });
+            const url = new URL(`${TWITCH_API_BASE_URL}/moderation/bans`);
+            url.searchParams.set("broadcaster_id", request.broadcasterId);
+            url.searchParams.set("moderator_id", validatedToken.userId);
+            url.searchParams.set("user_id", request.userId);
+            const payload = await twitchRequest({
+                clientId: options.clientId,
+                userAccessTokenProvider: resolvedUserAccessTokenProvider,
+            }, url, {
+                method: "DELETE",
+            });
+            return {
+                platform: TWITCH_PLATFORM,
+                userId: request.userId,
+                banId: null,
+                ...(request.includeRaw ? { raw: payload } : {}),
+            };
         },
     };
 }
@@ -86,7 +251,10 @@ class TwitchChatListenerImpl extends ChatListenerEmitter {
     }
     async startInternal() {
         try {
-            this.validatedToken = await validateTwitchUserAccessToken(this.options);
+            this.validatedToken = await validateTwitchUserAccessToken(this.options, {
+                feature: "chat.listen()",
+                requiredScopes: [TWITCH_CHAT_SCOPE],
+            });
             this.setup = await this.connect({
                 url: this.websocketUrl,
                 shouldCreateSubscription: true,
@@ -381,21 +549,22 @@ class TwitchChatListenerImpl extends ChatListenerEmitter {
 /**
  * Validate the Twitch user token and ensure it can subscribe to chat events.
  */
-async function validateTwitchUserAccessToken(options) {
-    let response;
-    try {
-        response = await fetch(`${TWITCH_AUTH_BASE_URL}/validate`, {
-            headers: {
-                Authorization: `OAuth ${options.accessToken}`,
-            },
-        });
-    }
-    catch (error) {
-        throw new PlatformApiError("Twitch token validation failed.", {
-            platform: TWITCH_PLATFORM,
-            cause: error,
-        });
-    }
+async function validateTwitchUserAccessToken(options, requirements) {
+    const response = await validateTwitchTokenRequest(options.userAccessTokenProvider, async (userAccessToken) => {
+        try {
+            return await fetch(`${TWITCH_AUTH_BASE_URL}/validate`, {
+                headers: {
+                    Authorization: `OAuth ${userAccessToken}`,
+                },
+            });
+        }
+        catch (error) {
+            throw new PlatformApiError("Twitch token validation failed.", {
+                platform: TWITCH_PLATFORM,
+                cause: error,
+            });
+        }
+    });
     const text = await response.text();
     const payload = text ? JSON.parse(text) : {};
     if (!response.ok) {
@@ -405,14 +574,17 @@ async function validateTwitchUserAccessToken(options) {
         });
     }
     if (payload.client_id !== options.clientId) {
-        throw new PlatformValidationError("Twitch accessToken was not issued for the configured clientId.", { platform: TWITCH_PLATFORM });
+        throw new PlatformValidationError("Twitch userAccessToken was not issued for the configured clientId.", { platform: TWITCH_PLATFORM });
     }
     if (!payload.user_id) {
-        throw new PlatformValidationError("Twitch accessToken must be a user access token.", { platform: TWITCH_PLATFORM });
+        throw new PlatformValidationError("Twitch userAccessToken must be a user access token.", { platform: TWITCH_PLATFORM });
     }
     const scopes = Array.isArray(payload.scopes) ? payload.scopes : [];
-    if (!scopes.includes(TWITCH_CHAT_SCOPE)) {
-        throw new PlatformValidationError(`Twitch accessToken must include the "${TWITCH_CHAT_SCOPE}" scope.`, { platform: TWITCH_PLATFORM });
+    for (const scope of requirements.requiredScopes) {
+        if (scopes.includes(scope)) {
+            continue;
+        }
+        throw new PlatformValidationError(`Twitch userAccessToken must include the "${scope}" scope for ${requirements.feature}.`, { platform: TWITCH_PLATFORM });
     }
     return {
         userId: payload.user_id,
@@ -423,26 +595,28 @@ async function validateTwitchUserAccessToken(options) {
  * Send a request to the Twitch API and normalize transport failures.
  */
 async function twitchRequest(options, pathOrUrl, init = {}) {
-    let response;
-    try {
-        response = await fetch(typeof pathOrUrl === "string"
-            ? `${TWITCH_API_BASE_URL}${pathOrUrl}`
-            : pathOrUrl, {
-            ...init,
-            headers: {
-                Authorization: `Bearer ${options.accessToken}`,
-                "Client-Id": options.clientId,
-                "Content-Type": "application/json",
-                ...init.headers,
-            },
-        });
-    }
-    catch (error) {
-        throw new PlatformApiError("Twitch API request failed.", {
-            platform: TWITCH_PLATFORM,
-            cause: error,
-        });
-    }
+    const url = typeof pathOrUrl === "string"
+        ? `${TWITCH_API_BASE_URL}${pathOrUrl}`
+        : pathOrUrl;
+    const response = await runTwitchAuthorizedRequest(options.userAccessTokenProvider, async (userAccessToken) => {
+        try {
+            return await fetch(url, {
+                ...init,
+                headers: {
+                    Authorization: `Bearer ${userAccessToken}`,
+                    "Client-Id": options.clientId,
+                    "Content-Type": "application/json",
+                    ...init.headers,
+                },
+            });
+        }
+        catch (error) {
+            throw new PlatformApiError("Twitch API request failed.", {
+                platform: TWITCH_PLATFORM,
+                cause: error,
+            });
+        }
+    });
     if (!response.ok) {
         throw new PlatformApiError("Twitch API request failed.", {
             platform: TWITCH_PLATFORM,
@@ -466,6 +640,47 @@ async function twitchRequest(options, pathOrUrl, init = {}) {
             status: response.status,
         });
     }
+}
+function requireTwitchUserAccessTokenProvider(provider, feature) {
+    if (provider) {
+        return provider;
+    }
+    throw new PlatformValidationError(`Twitch userAccessToken is required for ${feature}.`, {
+        platform: TWITCH_PLATFORM,
+    });
+}
+async function validateTwitchTokenRequest(provider, runRequest) {
+    const accessToken = await provider.getAccessToken();
+    let response = await runRequest(accessToken);
+    if (response.status === 401 && provider.canRefresh) {
+        response = await runRequest(await provider.refreshAccessToken());
+    }
+    return response;
+}
+async function twitchModerationBanRequest(options, request) {
+    const url = new URL(`${TWITCH_API_BASE_URL}/moderation/bans`);
+    url.searchParams.set("broadcaster_id", request.broadcasterId);
+    url.searchParams.set("moderator_id", request.moderatorId);
+    return twitchRequest(options, url, {
+        method: "POST",
+        body: JSON.stringify({
+            data: {
+                user_id: request.userId,
+                ...(request.durationSeconds !== undefined
+                    ? { duration: request.durationSeconds }
+                    : {}),
+                ...(request.reason ? { reason: request.reason } : {}),
+            },
+        }),
+    });
+}
+async function runTwitchAuthorizedRequest(provider, runRequest) {
+    const accessToken = await provider.getAccessToken();
+    let response = await runRequest(accessToken);
+    if (response.status === 401 && provider.canRefresh) {
+        response = await runRequest(await provider.refreshAccessToken());
+    }
+    return response;
 }
 /**
  * Normalize a Twitch EventSub subscription record into the public type.
@@ -555,6 +770,62 @@ function validateTwitchChatListenRequest(request) {
         throw new PlatformValidationError("maxRecentMessageIds must be a positive integer.", { platform: TWITCH_PLATFORM });
     }
 }
+function validateTwitchSendMessageRequest(request) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Twitch send message request is required.", { platform: TWITCH_PLATFORM });
+    }
+    validateRequiredTwitchString(request.broadcasterId, "broadcasterId");
+    if (!request.text ||
+        typeof request.text !== "string" ||
+        request.text.trim().length === 0) {
+        throw new PlatformValidationError("Message text is required and must be a non-empty string.", { platform: TWITCH_PLATFORM });
+    }
+    if (request.replyParentMessageId !== undefined) {
+        validateRequiredTwitchString(request.replyParentMessageId, "replyParentMessageId");
+    }
+}
+function validateTwitchDeleteMessageRequest(request) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Twitch delete message request is required.", { platform: TWITCH_PLATFORM });
+    }
+    validateRequiredTwitchString(request.broadcasterId, "broadcasterId");
+    validateRequiredTwitchString(request.messageId, "messageId");
+}
+function validateTwitchBanUserRequest(request) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Twitch ban user request is required.", {
+            platform: TWITCH_PLATFORM,
+        });
+    }
+    validateRequiredTwitchString(request.broadcasterId, "broadcasterId");
+    validateRequiredTwitchString(request.userId, "userId");
+    validateOptionalTwitchReason(request.reason);
+}
+function validateTwitchTimeoutUserRequest(request) {
+    validateTwitchBanUserRequest(request);
+    if (!Number.isInteger(request.durationSeconds) ||
+        request.durationSeconds <= 0) {
+        throw new PlatformValidationError("durationSeconds is required and must be a positive integer.", { platform: TWITCH_PLATFORM });
+    }
+}
+function validateTwitchUnbanUserRequest(request) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Twitch unban user request is required.", { platform: TWITCH_PLATFORM });
+    }
+    validateRequiredTwitchString(request.broadcasterId, "broadcasterId");
+    validateRequiredTwitchString(request.userId, "userId");
+}
+function validateRequiredTwitchString(value, field) {
+    if (typeof value !== "string" || value.trim().length === 0) {
+        throw new PlatformValidationError(`${field} is required and must be a string.`, { platform: TWITCH_PLATFORM });
+    }
+}
+function validateOptionalTwitchReason(reason) {
+    if (reason !== undefined &&
+        (typeof reason !== "string" || reason.trim().length === 0)) {
+        throw new PlatformValidationError("reason must be a non-empty string when provided.", { platform: TWITCH_PLATFORM });
+    }
+}
 function buildWebSocketUrl(websocketUrl, keepaliveTimeoutSeconds) {
     const url = new URL(websocketUrl);
     if (keepaliveTimeoutSeconds !== undefined) {
@@ -576,4 +847,11 @@ function normalizeDate(value) {
     return Number.isNaN(timestamp)
         ? new Date().toISOString()
         : new Date(timestamp).toISOString();
+}
+function normalizeNullableDate(value) {
+    if (!value) {
+        return null;
+    }
+    const timestamp = Date.parse(value);
+    return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString();
 }

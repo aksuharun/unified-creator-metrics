@@ -1,10 +1,11 @@
 import { PlatformApiError } from "../../errors.js";
 import { KICK_PLATFORM } from "./constants.js";
-import { normalizeKickSlug, validateChannelResolveRequest, } from "./validation.js";
+import { normalizeKickSlug, requireKickAppAccessToken, validateChannelResolveRequest, } from "./validation.js";
 export function createKickChannelsClient(options) {
     return {
         async resolve(request) {
             validateChannelResolveRequest(request);
+            const appAccessToken = requireKickAppAccessToken(options.appAccessToken, "channels.resolve()");
             const slug = normalizeKickSlug(request.slug);
             const url = new URL("https://api.kick.com/public/v1/channels");
             url.searchParams.append("slug", slug);
@@ -12,7 +13,7 @@ export function createKickChannelsClient(options) {
             try {
                 response = await fetch(url, {
                     headers: {
-                        Authorization: `Bearer ${options.accessToken}`,
+                        Authorization: `Bearer ${appAccessToken}`,
                     },
                 });
             }

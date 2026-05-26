@@ -1,7 +1,7 @@
-import type { KickChannelResolveRequest, KickChannelResolveResult, KickChatStartResult, KickClient, KickChatListenRequest, KickNodeWebhookRequest, KickSendMessageRequest, KickStopOptions, KickWebhookRequest, KickWebhookResult, VideoMetricsRequest as KickVideoMetricsRequest } from "./providers/kick/types.js";
-import type { ChannelMetricsRequest as TwitchChannelMetricsRequest, TwitchChatListenRequest, TwitchChatStartResult, TwitchChannelResolveRequest, TwitchChannelResolveResult, TwitchClient, TwitchStopOptions } from "./providers/twitch/types.js";
-import type { ChannelMetrics, ChatListener, ChatMessage, Platform, SendMessageResult, VideoMetrics } from "./types.js";
-import type { ChannelMetricsRequest as YoutubeChannelMetricsRequest, YoutubeChannelResolveRequest, YoutubeChannelResolveResult, YoutubeChatListenRequest, YoutubeSendMessageRequest, YoutubeChatStartResult, VideoMetricsRequest as YoutubeVideoMetricsRequest, YoutubeClient } from "./providers/youtube/types.js";
+import type { KickBanUserRequest, KickChannelResolveRequest, KickChannelResolveResult, KickChatStartResult, KickClient, KickChatListenRequest, KickDeleteMessageRequest, KickNodeWebhookRequest, KickSendMessageRequest, KickStopOptions, KickTimeoutUserRequest, KickUnbanUserRequest, KickWebhookRequest, KickWebhookResult, VideoMetricsRequest as KickVideoMetricsRequest } from "./providers/kick/types.js";
+import type { TwitchBanUserRequest, ChannelMetricsRequest as TwitchChannelMetricsRequest, TwitchChatListenRequest, TwitchChatStartResult, TwitchChannelResolveRequest, TwitchChannelResolveResult, TwitchClient, TwitchDeleteMessageRequest, TwitchSendMessageRequest, TwitchStopOptions, TwitchTimeoutUserRequest, TwitchUnbanUserRequest, VideoMetricsRequest as TwitchVideoMetricsRequest } from "./providers/twitch/types.js";
+import type { BanUserResult, ChannelMetrics, ChatListener, ChatMessage, DeleteMessageResult, Platform, SendMessageResult, TimeoutUserResult, UnbanUserResult, VideoMetrics } from "./types.js";
+import type { YoutubeBanUserRequest, ChannelMetricsRequest as YoutubeChannelMetricsRequest, YoutubeChannelResolveRequest, YoutubeChannelResolveResult, YoutubeChatListenRequest, YoutubeDeleteMessageRequest, YoutubeSendMessageRequest, YoutubeChatStartResult, YoutubeTimeoutUserRequest, YoutubeUnbanUserRequest, VideoMetricsRequest as YoutubeVideoMetricsRequest, YoutubeClient } from "./providers/youtube/types.js";
 /**
  * Provider clients available to the multi-platform router.
  */
@@ -74,7 +74,13 @@ export type MultiPlatformKickVideoMetricsRequest = KickVideoMetricsRequest & {
    */
     platform: Extract<Platform, "kick">;
 };
-export type MultiPlatformVideoMetricsRequest = MultiPlatformYoutubeVideoMetricsRequest | MultiPlatformKickVideoMetricsRequest;
+export type MultiPlatformTwitchVideoMetricsRequest = TwitchVideoMetricsRequest & {
+    /**
+ * Platform to route the request to.
+ */
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformVideoMetricsRequest = MultiPlatformYoutubeVideoMetricsRequest | MultiPlatformTwitchVideoMetricsRequest | MultiPlatformKickVideoMetricsRequest;
 export type MultiPlatformVideoMetricsBatchRequest = readonly MultiPlatformVideoMetricsRequest[];
 export type MultiPlatformYoutubeChatListenRequest = YoutubeChatListenRequest & {
     platform: Extract<Platform, "youtube">;
@@ -93,7 +99,50 @@ export type MultiPlatformYoutubeSendMessageRequest = YoutubeSendMessageRequest &
 export type MultiPlatformKickSendMessageRequest = KickSendMessageRequest & {
     platform: Extract<Platform, "kick">;
 };
-export type MultiPlatformSendMessageRequest = MultiPlatformYoutubeSendMessageRequest | MultiPlatformKickSendMessageRequest;
+export type MultiPlatformTwitchSendMessageRequest = TwitchSendMessageRequest & {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformSendMessageRequest = MultiPlatformYoutubeSendMessageRequest | MultiPlatformTwitchSendMessageRequest | MultiPlatformKickSendMessageRequest;
+export type MultiPlatformYoutubeDeleteMessageRequest = YoutubeDeleteMessageRequest & {
+    platform: Extract<Platform, "youtube">;
+};
+export type MultiPlatformKickDeleteMessageRequest = KickDeleteMessageRequest & {
+    platform: Extract<Platform, "kick">;
+};
+export type MultiPlatformTwitchDeleteMessageRequest = TwitchDeleteMessageRequest & {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformDeleteMessageRequest = MultiPlatformYoutubeDeleteMessageRequest | MultiPlatformTwitchDeleteMessageRequest | MultiPlatformKickDeleteMessageRequest;
+export type MultiPlatformYoutubeBanUserRequest = YoutubeBanUserRequest & {
+    platform: Extract<Platform, "youtube">;
+};
+export type MultiPlatformKickBanUserRequest = KickBanUserRequest & {
+    platform: Extract<Platform, "kick">;
+};
+export type MultiPlatformTwitchBanUserRequest = TwitchBanUserRequest & {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformBanUserRequest = MultiPlatformYoutubeBanUserRequest | MultiPlatformTwitchBanUserRequest | MultiPlatformKickBanUserRequest;
+export type MultiPlatformYoutubeTimeoutUserRequest = YoutubeTimeoutUserRequest & {
+    platform: Extract<Platform, "youtube">;
+};
+export type MultiPlatformKickTimeoutUserRequest = KickTimeoutUserRequest & {
+    platform: Extract<Platform, "kick">;
+};
+export type MultiPlatformTwitchTimeoutUserRequest = TwitchTimeoutUserRequest & {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformTimeoutUserRequest = MultiPlatformYoutubeTimeoutUserRequest | MultiPlatformTwitchTimeoutUserRequest | MultiPlatformKickTimeoutUserRequest;
+export type MultiPlatformYoutubeUnbanUserRequest = YoutubeUnbanUserRequest & {
+    platform: Extract<Platform, "youtube">;
+};
+export type MultiPlatformKickUnbanUserRequest = KickUnbanUserRequest & {
+    platform: Extract<Platform, "kick">;
+};
+export type MultiPlatformTwitchUnbanUserRequest = TwitchUnbanUserRequest & {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformUnbanUserRequest = MultiPlatformYoutubeUnbanUserRequest | MultiPlatformTwitchUnbanUserRequest | MultiPlatformKickUnbanUserRequest;
 export type MultiPlatformYoutubeChatStartResult = YoutubeChatStartResult & {
     platform: Extract<Platform, "youtube">;
 };
@@ -147,6 +196,10 @@ export type MultiPlatformChatsClient = {
      * Route a standardized text message to the selected provider.
      */
     sendMessage(request: MultiPlatformSendMessageRequest): Promise<SendMessageResult>;
+    deleteMessage(request: MultiPlatformDeleteMessageRequest): Promise<DeleteMessageResult>;
+    banUser(request: MultiPlatformBanUserRequest): Promise<BanUserResult>;
+    timeoutUser(request: MultiPlatformTimeoutUserRequest): Promise<TimeoutUserResult>;
+    unbanUser(request: MultiPlatformUnbanUserRequest): Promise<UnbanUserResult>;
 };
 /**
  * Client that exposes one normalized API across configured providers.

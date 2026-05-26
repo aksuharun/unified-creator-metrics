@@ -6,11 +6,62 @@ export function validateKickConfig(config) {
             platform: KICK_PLATFORM,
         });
     }
-    if (!("accessToken" in config) || !config.accessToken) {
-        throw new PlatformValidationError("Kick accessToken is required.", {
+    const configRecord = config;
+    const appAccessToken = readNonEmptyString(configRecord, "appAccessToken");
+    const userAccessToken = readNonEmptyString(configRecord, "userAccessToken");
+    const userRefreshToken = readNonEmptyString(configRecord, "userRefreshToken");
+    const accessToken = readNonEmptyString(configRecord, "accessToken");
+    const clientId = readNonEmptyString(configRecord, "clientId");
+    const clientSecret = readNonEmptyString(configRecord, "clientSecret");
+    if (!appAccessToken && !userAccessToken && !userRefreshToken && !accessToken) {
+        throw new PlatformValidationError("Kick appAccessToken, userAccessToken, or userRefreshToken is required.", {
             platform: KICK_PLATFORM,
         });
     }
+    if (userRefreshToken && (!clientId || !clientSecret)) {
+        throw new PlatformValidationError("Kick clientId and clientSecret are required when userRefreshToken is provided.", {
+            platform: KICK_PLATFORM,
+        });
+    }
+}
+export function resolveKickClientTokens(config) {
+    const fallbackAccessToken = normalizeNonEmptyString(config.accessToken);
+    return {
+        appAccessToken: normalizeNonEmptyString(config.appAccessToken) ?? fallbackAccessToken,
+        userAccessToken: normalizeNonEmptyString(config.userAccessToken) ?? fallbackAccessToken,
+    };
+}
+function readNonEmptyString(value, key) {
+    if (!(key in value)) {
+        return undefined;
+    }
+    return normalizeNonEmptyString(value[key]);
+}
+function normalizeNonEmptyString(value) {
+    if (typeof value !== "string") {
+        return undefined;
+    }
+    const trimmedValue = value.trim();
+    if (trimmedValue.length === 0) {
+        return undefined;
+    }
+    return trimmedValue;
+}
+export function requireKickAppAccessToken(appAccessToken, feature) {
+    if (appAccessToken) {
+        return appAccessToken;
+    }
+    throw new PlatformValidationError(`Kick appAccessToken is required for ${feature}.`, {
+        platform: KICK_PLATFORM,
+    });
+}
+export function requireKickUserAccessToken(userAccessToken, feature) {
+    if (userAccessToken) {
+        return userAccessToken;
+    }
+    throw new PlatformValidationError(`Kick userAccessToken is required for ${feature}.`, {
+        platform: KICK_PLATFORM,
+    });
 }
 export function validateVideoMetricsRequest(request) {
     if (!request || typeof request !== "object") {
