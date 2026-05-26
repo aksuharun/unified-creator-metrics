@@ -1,21 +1,18 @@
 import "dotenv/config"
-import { createYoutubeClient } from "unified-creator-metrics"
 import {
+    createYoutubeClientFromEnv,
     getSmokeMessage,
+    getYoutubeClientConfigFromEnv,
     handleSmokeTestError,
-    requiredEnv,
     resolveYoutubeLiveChatId,
 } from "../../smoke/helpers.js"
 
 async function main() {
-    const accessToken = requiredEnv("YOUTUBE_ACCESS_TOKEN")
-    const apiKey = process.env.YOUTUBE_API_KEY
-    const liveChatId = await resolveYoutubeLiveChatId({ accessToken, apiKey })
+    const liveChatId = await resolveYoutubeLiveChatId(
+        getYoutubeClientConfigFromEnv(),
+    )
     const text = getSmokeMessage("YOUTUBE_CHAT_MESSAGE")
-    const youtube = createYoutubeClient({
-        accessToken,
-        apiKey,
-    })
+    const youtube = createYoutubeClientFromEnv()
 
     console.log("Sending YouTube chat smoke-test message...")
     console.log("YOUTUBE_LIVE_CHAT_ID:", liveChatId)

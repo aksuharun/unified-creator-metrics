@@ -9,7 +9,7 @@ import {
 
 async function main() {
     const accessToken = getKickUserAccessToken()
-    const kick = createKickClient({ accessToken })
+    const kick = createKickClient({ userAccessToken: accessToken })
     const request = createSendMessageRequest()
 
     console.log("Sending Kick chat smoke-test message...")

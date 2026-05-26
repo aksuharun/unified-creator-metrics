@@ -8,28 +8,65 @@ const __dirname = path.dirname(__filename)
 
 const smokeSuites = {
     youtube: [
-        "youtube/resolve-channel.js",
-        "youtube/channel-metrics.js",
-        "youtube/video-metrics.js",
+        "youtube/lookup-channel-identity.js",
+        "youtube/fetch-channel-metrics.js",
+        "youtube/fetch-video-metrics.js",
     ],
     kick: [
-        "kick/resolve-channel.js",
-        "kick/concurrent-viewers.js",
+        "kick/lookup-channel-identity.js",
+        "kick/fetch-live-viewer-count.js",
     ],
     twitch: [
-        "twitch/resolve-channel.js",
-        "twitch/channel-metrics.js",
-        "twitch/concurrent-viewers.js",
+        "twitch/lookup-channel-identity.js",
+        "twitch/fetch-channel-metrics.js",
+        "twitch/fetch-live-viewer-count.js",
     ],
     "multi-platform": [
-        "multi-platform/channel-metrics.js",
-        "multi-platform/video-metrics.js",
+        "multi-platform/route-channel-metrics.js",
+        "multi-platform/route-video-metrics.js",
+    ],
+    chat: [
+        "youtube/send-read-delete-chat-message.js",
+        "twitch/send-read-delete-chat-message.js",
+        "kick/send-read-delete-chat-message.js",
+    ],
+    "chat:youtube": [
+        "youtube/send-read-delete-chat-message.js",
+    ],
+    "chat:twitch": [
+        "twitch/send-read-delete-chat-message.js",
+    ],
+    "chat:kick": [
+        "kick/send-read-delete-chat-message.js",
+    ],
+    auth: [
+        "youtube/refresh-user-access-token.js",
+        "twitch/refresh-user-access-token.js",
+        "kick/refresh-user-access-token.js",
+    ],
+    moderation: [
+        "youtube/moderate-chat-user.js",
+        "twitch/moderate-chat-user.js",
+        "kick/moderate-chat-user.js",
     ],
 }
 
+const defaultExcludedSuites = new Set([
+    "chat",
+    "chat:youtube",
+    "chat:twitch",
+    "chat:kick",
+    "auth",
+    "moderation",
+])
+
 async function main() {
     const selection = process.argv[2]
-    const suites = selection ? [selection] : Object.keys(smokeSuites)
+    const suites = selection
+        ? [selection]
+        : Object.keys(smokeSuites).filter(
+            (suite) => !defaultExcludedSuites.has(suite),
+        )
     const invalidSuites = suites.filter((suite) => !(suite in smokeSuites))
 
     if (invalidSuites.length > 0) {

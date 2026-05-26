@@ -17,7 +17,7 @@ async function main() {
     const accessToken = requiredEnv("TWITCH_USER_ACCESS_TOKEN")
     const twitch = createTwitchClient({
         clientId,
-        accessToken,
+        userAccessToken: accessToken,
     })
     const validation = await validateTwitchUserToken({ clientId, accessToken })
     const broadcasterId = await resolveBroadcasterId(twitch)

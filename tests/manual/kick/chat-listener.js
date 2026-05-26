@@ -24,7 +24,7 @@ if (!["ensure", "create", "manual"].includes(subscriptionMode)) {
 }
 
 const kick = createKickClient({
-    accessToken,
+    appAccessToken: accessToken,
 })
 
 const chat = kick.chat.listen({
