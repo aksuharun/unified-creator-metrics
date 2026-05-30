@@ -97,9 +97,10 @@ function validatePollChoices(choices) {
     }
 }
 function normalizeYoutubePollMessage(message, options) {
-    const metadata = message.snippet?.pollDetails?.metadata;
+    const pollDetails = message.snippet?.pollDetails;
+    const metadata = pollDetails?.metadata;
     const pollId = message.id;
-    const status = normalizeYoutubePollStatus(metadata?.status);
+    const status = normalizeYoutubePollStatus(pollDetails?.status);
     if (!pollId) {
         throw new PlatformApiError("YouTube poll response did not include an id.", { platform: YOUTUBE_PLATFORM, cause: message });
     }
@@ -109,7 +110,7 @@ function normalizeYoutubePollMessage(message, options) {
         question: metadata?.questionText ?? null,
         choices: normalizeYoutubePollOptions(metadata?.options),
         status,
-        endReason: normalizeYoutubePollEndReason(metadata?.status),
+        endReason: normalizeYoutubePollEndReason(pollDetails?.status),
         durationSeconds: null,
         createdAt: normalizeNullableDate(message.snippet?.publishedAt ?? undefined),
         endedAt: status === "ended" ? options.endedAt ?? null : null,

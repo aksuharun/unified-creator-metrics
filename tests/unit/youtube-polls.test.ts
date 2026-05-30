@@ -17,9 +17,9 @@ describe("createYoutubePollsClient()", () => {
             snippet: {
                 publishedAt: "2026-05-21T10:30:00Z",
                 pollDetails: {
+                    status: "active",
                     metadata: {
                         questionText: "Next topic?",
-                        status: "active",
                         options: [
                             { optionText: "APIs", tally: "2" },
                             { optionText: "SDKs", tally: "3" },
@@ -81,9 +81,9 @@ describe("createYoutubePollsClient()", () => {
                 id: "youtube-poll-1",
                 snippet: {
                     pollDetails: {
+                        status: "closed",
                         metadata: {
                             questionText: "Next topic?",
-                            status: "closed",
                         },
                     },
                 },
