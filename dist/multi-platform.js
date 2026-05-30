@@ -20,6 +20,7 @@ export function createMultiPlatformClient(config) {
         videos: createMultiPlatformVideosClient(providers),
         polls: createMultiPlatformPollsClient(providers),
         chats: createMultiPlatformChatsClient(providers),
+        livestreams: createMultiPlatformLivestreamsClient(providers),
     };
 }
 function createMultiPlatformChannelsClient(providers) {
@@ -623,4 +624,93 @@ async function readRawBody(request) {
                 : decoder.decode(chunk, { stream: true });
     }
     return rawBody + decoder.decode();
+}
+function createMultiPlatformLivestreamsClient(providers) {
+    function getActive(request) {
+        if (isLiveActiveLivestreamsBatchRequest(request)) {
+            return Promise.all(request.map((item) => dispatchActiveLivestreams(item, providers)));
+        }
+        return dispatchActiveLivestreams(request, providers);
+    }
+    function getScheduled(request) {
+        if (isScheduledLivestreamsBatchRequest(request)) {
+            return Promise.all(request.map((item) => dispatchScheduledLivestreams(item, providers)));
+        }
+        return dispatchScheduledLivestreams(request, providers);
+    }
+    return { getActive, getScheduled };
+}
+function isLiveActiveLivestreamsBatchRequest(value) {
+    return Array.isArray(value);
+}
+function isScheduledLivestreamsBatchRequest(value) {
+    return Array.isArray(value);
+}
+function dispatchActiveLivestreams(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Active livestreams request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "kick") {
+        const provider = providers.kick;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    throw new PlatformValidationError(`Unsupported platform "${request.platform}".`);
+}
+function dispatchScheduledLivestreams(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Scheduled livestreams request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getScheduled({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getScheduled({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    // Kick does not support scheduled streams.
+    if (request.platform === "kick") {
+        throw new PlatformValidationError("Kick does not support scheduled livestreams.", {
+            platform: "kick",
+        });
+    }
+    throw new PlatformValidationError(`Unsupported platform "${request.platform}".`);
 }

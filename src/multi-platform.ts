@@ -17,6 +17,7 @@ import type {
     KickWebhookRequest,
     KickWebhookResult,
     VideoMetricsRequest as KickVideoMetricsRequest,
+    KickActiveLivestreamsRequest,
 } from "./providers/kick/types.js"
 import type {
     TwitchBanUserRequest,
@@ -35,6 +36,8 @@ import type {
     TwitchTimeoutUserRequest,
     TwitchUnbanUserRequest,
     VideoMetricsRequest as TwitchVideoMetricsRequest,
+    TwitchActiveLivestreamsRequest,
+    TwitchScheduledLivestreamsRequest,
 } from "./providers/twitch/types.js"
 import type {
     BanUserResult,
@@ -49,6 +52,7 @@ import type {
     TimeoutUserResult,
     UnbanUserResult,
     VideoMetrics,
+    Livestream,
 } from "./types.js"
 import type {
     YoutubeBanUserRequest,
@@ -66,6 +70,8 @@ import type {
     YoutubeUnbanUserRequest,
     VideoMetricsRequest as YoutubeVideoMetricsRequest,
     YoutubeClient,
+    YoutubeActiveLivestreamsRequest,
+    YoutubeScheduledLivestreamsRequest,
 } from "./providers/youtube/types.js"
 
 /**
@@ -338,6 +344,72 @@ export type MultiPlatformChatStartResult = readonly (
     | MultiPlatformKickChatStartResult
 )[]
 
+export type MultiPlatformYoutubeActiveLivestreamsRequest =
+    YoutubeActiveLivestreamsRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformTwitchActiveLivestreamsRequest =
+    TwitchActiveLivestreamsRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformKickActiveLivestreamsRequest =
+    KickActiveLivestreamsRequest & {
+        platform: Extract<Platform, "kick">
+    }
+
+export type MultiPlatformActiveLivestreamsRequest =
+    | MultiPlatformYoutubeActiveLivestreamsRequest
+    | MultiPlatformTwitchActiveLivestreamsRequest
+    | MultiPlatformKickActiveLivestreamsRequest
+
+export type MultiPlatformActiveLivestreamsBatchRequest =
+    readonly MultiPlatformActiveLivestreamsRequest[]
+
+export type MultiPlatformYoutubeScheduledLivestreamsRequest =
+    YoutubeScheduledLivestreamsRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformTwitchScheduledLivestreamsRequest =
+    TwitchScheduledLivestreamsRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformScheduledLivestreamsRequest =
+    | MultiPlatformYoutubeScheduledLivestreamsRequest
+    | MultiPlatformTwitchScheduledLivestreamsRequest
+
+export type MultiPlatformScheduledLivestreamsBatchRequest =
+    readonly MultiPlatformScheduledLivestreamsRequest[]
+
+export type MultiPlatformLivestreamsClient = {
+    getActive(
+        request: MultiPlatformActiveLivestreamsRequest,
+    ): Promise<Livestream[]>
+    getActive(
+        request: MultiPlatformActiveLivestreamsBatchRequest,
+    ): Promise<Livestream[][]>
+    getActive(
+        request:
+            | MultiPlatformActiveLivestreamsRequest
+            | MultiPlatformActiveLivestreamsBatchRequest,
+    ): Promise<Livestream[] | Livestream[][]>
+
+    getScheduled(
+        request: MultiPlatformScheduledLivestreamsRequest,
+    ): Promise<Livestream[]>
+    getScheduled(
+        request: MultiPlatformScheduledLivestreamsBatchRequest,
+    ): Promise<Livestream[][]>
+    getScheduled(
+        request:
+            | MultiPlatformScheduledLivestreamsRequest
+            | MultiPlatformScheduledLivestreamsBatchRequest,
+    ): Promise<Livestream[] | Livestream[][]>
+}
+
 export type MultiPlatformChatStopOptions = {
     twitch?: TwitchStopOptions
     kick?: KickStopOptions
@@ -455,6 +527,11 @@ export type MultiPlatformClient = {
    * Chat-related methods.
    */
     chats: MultiPlatformChatsClient
+
+    /**
+     * Livestream-related methods.
+     */
+    livestreams: MultiPlatformLivestreamsClient
 }
 
 /**
@@ -481,6 +558,7 @@ export function createMultiPlatformClient(
         videos: createMultiPlatformVideosClient(providers),
         polls: createMultiPlatformPollsClient(providers),
         chats: createMultiPlatformChatsClient(providers),
+        livestreams: createMultiPlatformLivestreamsClient(providers),
     }
 }
 
@@ -1506,4 +1584,171 @@ async function readRawBody(request: AsyncIterable<Uint8Array | string>) {
     }
 
     return rawBody + decoder.decode()
+}
+
+function createMultiPlatformLivestreamsClient(
+    providers: MultiPlatformClientConfig,
+): MultiPlatformLivestreamsClient {
+    function getActive(
+        request: MultiPlatformActiveLivestreamsRequest,
+    ): Promise<Livestream[]>
+    function getActive(
+        request: MultiPlatformActiveLivestreamsBatchRequest,
+    ): Promise<Livestream[][]>
+    function getActive(
+        request:
+            | MultiPlatformActiveLivestreamsRequest
+            | MultiPlatformActiveLivestreamsBatchRequest,
+    ): Promise<Livestream[] | Livestream[][]> {
+        if (isLiveActiveLivestreamsBatchRequest(request)) {
+            return Promise.all(
+                request.map((item) => dispatchActiveLivestreams(item, providers)),
+            )
+        }
+
+        return dispatchActiveLivestreams(request, providers)
+    }
+
+    function getScheduled(
+        request: MultiPlatformScheduledLivestreamsRequest,
+    ): Promise<Livestream[]>
+    function getScheduled(
+        request: MultiPlatformScheduledLivestreamsBatchRequest,
+    ): Promise<Livestream[][]>
+    function getScheduled(
+        request:
+            | MultiPlatformScheduledLivestreamsRequest
+            | MultiPlatformScheduledLivestreamsBatchRequest,
+    ): Promise<Livestream[] | Livestream[][]> {
+        if (isScheduledLivestreamsBatchRequest(request)) {
+            return Promise.all(
+                request.map((item) => dispatchScheduledLivestreams(item, providers)),
+            )
+        }
+
+        return dispatchScheduledLivestreams(request, providers)
+    }
+
+    return { getActive, getScheduled }
+}
+
+function isLiveActiveLivestreamsBatchRequest(
+    value: unknown,
+): value is MultiPlatformActiveLivestreamsBatchRequest {
+    return Array.isArray(value)
+}
+
+function isScheduledLivestreamsBatchRequest(
+    value: unknown,
+): value is MultiPlatformScheduledLivestreamsBatchRequest {
+    return Array.isArray(value)
+}
+
+function dispatchActiveLivestreams(
+    request: MultiPlatformActiveLivestreamsRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<Livestream[]> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Active livestreams request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "kick") {
+        const provider = providers.kick
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    throw new PlatformValidationError(`Unsupported platform "${(request as { platform: string }).platform}".`)
+}
+
+function dispatchScheduledLivestreams(
+    request: MultiPlatformScheduledLivestreamsRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<Livestream[]> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Scheduled livestreams request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getScheduled({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getScheduled({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    // Kick does not support scheduled streams.
+    if ((request as { platform: string }).platform === "kick") {
+        throw new PlatformValidationError("Kick does not support scheduled livestreams.", {
+            platform: "kick",
+        })
+    }
+
+    throw new PlatformValidationError(`Unsupported platform "${(request as { platform: string }).platform}".`)
 }

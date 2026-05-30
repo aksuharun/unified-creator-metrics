@@ -1,4 +1,4 @@
-import type { ChannelMetrics as SharedChannelMetrics, ChannelMetricsRequest as SharedChannelMetricsRequest, CreatePollRequest, CreatePollResult, DeleteMessageResult, EndPollRequest, EndPollResult, BanUserResult, ChatListener, ChatMessage as SharedChatMessage, TimeoutUserResult, UnbanUserResult, VideoMetrics as SharedVideoMetrics, VideoMetricsRequest as SharedVideoMetricsRequest, SendMessageResult } from "../../types.js";
+import type { ChannelMetrics as SharedChannelMetrics, ChannelMetricsRequest as SharedChannelMetricsRequest, CreatePollRequest, CreatePollResult, DeleteMessageResult, EndPollRequest, EndPollResult, BanUserResult, ChatListener, ChatMessage as SharedChatMessage, TimeoutUserResult, UnbanUserResult, VideoMetrics as SharedVideoMetrics, VideoMetricsRequest as SharedVideoMetricsRequest, SendMessageResult, Livestream, ActiveLivestreamsRequest, ScheduledLivestreamsRequest } from "../../types.js";
 import type { GoogleYoutubeAuthClient } from "./google-client.js";
 import type { YoutubeTokenRefreshResult } from "./auth.js";
 export type { YoutubeTokenRefreshResult } from "./auth.js";
@@ -339,6 +339,17 @@ export type YoutubeChatClient = {
      */
     unbanUser(request: YoutubeUnbanUserRequest): Promise<YoutubeUnbanUserResult>;
 };
+/** YouTube active livestreams request. */
+export type YoutubeActiveLivestreamsRequest = ActiveLivestreamsRequest;
+/** YouTube scheduled livestreams request. */
+export type YoutubeScheduledLivestreamsRequest = ScheduledLivestreamsRequest;
+/** YouTube livestreams client. */
+export type YoutubeLivestreamsClient = {
+    /** Fetch active (currently live) streams for a channel. */
+    getActive(request: YoutubeActiveLivestreamsRequest): Promise<Livestream<"youtube">[]>;
+    /** Fetch scheduled (upcoming) streams for a channel. */
+    getScheduled(request: YoutubeScheduledLivestreamsRequest): Promise<Livestream<"youtube">[]>;
+};
 /**
  * YouTube provider client.
  */
@@ -363,4 +374,8 @@ export type YoutubeClient = {
    * Chat event methods.
    */
     chat: YoutubeChatClient;
+    /**
+     * Livestream-related methods.
+     */
+    livestreams: YoutubeLivestreamsClient;
 };

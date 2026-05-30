@@ -1,4 +1,4 @@
-import type { KickChannelResolveRequest, KickClientConfig, VideoMetricsRequest } from "./types.js";
+import type { KickChannelResolveRequest, KickClientConfig, VideoMetricsRequest, KickActiveLivestreamsRequest } from "./types.js";
 type ValidatedKickClientConfig = KickClientConfig & ({
     appAccessToken: string;
 } | {
@@ -18,4 +18,5 @@ export declare function requireKickUserAccessToken(userAccessToken: string | und
 export declare function validateVideoMetricsRequest(request: unknown): asserts request is VideoMetricsRequest;
 export declare function validateChannelResolveRequest(request: unknown): asserts request is KickChannelResolveRequest;
 export declare function normalizeKickSlug(value: string): string;
+export declare function validateActiveLivestreamsRequest(request: unknown): asserts request is KickActiveLivestreamsRequest;
 export {};

@@ -8,6 +8,8 @@ import type {
     SendMessageResult,
     TimeoutUserResult,
     UnbanUserResult,
+    Livestream,
+    ActiveLivestreamsRequest,
 } from "../../types.js"
 import type { KickUserTokenUpdate } from "./auth.js"
 
@@ -512,6 +514,17 @@ export type KickChatClient = {
     unbanUser(request: KickUnbanUserRequest): Promise<KickUnbanUserResult>
 }
 
+/** Kick active livestreams request. */
+export type KickActiveLivestreamsRequest = ActiveLivestreamsRequest
+
+/** Kick livestreams client. */
+export type KickLivestreamsClient = {
+    /** Fetch active streams for a Kick channel. */
+    getActive(
+        request: KickActiveLivestreamsRequest,
+    ): Promise<Livestream<"kick">[]>
+}
+
 /**
  * Kick provider client.
  */
@@ -535,4 +548,9 @@ export type KickClient = {
    * Chat event methods.
    */
     chat: KickChatClient
+
+    /**
+     * Livestream-related methods.
+     */
+    livestreams: KickLivestreamsClient
 }

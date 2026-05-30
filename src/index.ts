@@ -66,6 +66,16 @@ export type {
     MultiPlatformYoutubeTimeoutUserRequest,
     MultiPlatformYoutubeUnbanUserRequest,
     MultiPlatformYoutubeVideoMetricsRequest,
+    MultiPlatformYoutubeActiveLivestreamsRequest,
+    MultiPlatformTwitchActiveLivestreamsRequest,
+    MultiPlatformKickActiveLivestreamsRequest,
+    MultiPlatformActiveLivestreamsRequest,
+    MultiPlatformActiveLivestreamsBatchRequest,
+    MultiPlatformYoutubeScheduledLivestreamsRequest,
+    MultiPlatformTwitchScheduledLivestreamsRequest,
+    MultiPlatformScheduledLivestreamsRequest,
+    MultiPlatformScheduledLivestreamsBatchRequest,
+    MultiPlatformLivestreamsClient,
 } from "./multi-platform.js"
 export type {
     BanUserResult,
@@ -92,6 +102,10 @@ export type {
     VideoMetric,
     VideoMetrics,
     VideoMetricsRequest,
+    Livestream,
+    LivestreamStatus,
+    ActiveLivestreamsRequest,
+    ScheduledLivestreamsRequest,
 } from "./types.js"
 export type {
     YoutubeBanUserRequest,
@@ -123,6 +137,9 @@ export type {
     YoutubeUnbanUserResult,
     YoutubeVideoMetric,
     YoutubeVideosClient,
+    YoutubeActiveLivestreamsRequest,
+    YoutubeScheduledLivestreamsRequest,
+    YoutubeLivestreamsClient,
 } from "./providers/youtube/types.js"
 export type {
     KickBanUserRequest,
@@ -157,6 +174,8 @@ export type {
     KickVideosClient,
     KickWebhookRequest,
     KickWebhookResult,
+    KickActiveLivestreamsRequest,
+    KickLivestreamsClient,
 } from "./providers/kick/types.js"
 export type {
     TwitchBanUserRequest,
@@ -194,6 +213,9 @@ export type {
     TwitchUserTokenUpdate,
     TwitchVideoMetric,
     TwitchVideosClient,
+    TwitchActiveLivestreamsRequest,
+    TwitchScheduledLivestreamsRequest,
+    TwitchLivestreamsClient,
 } from "./providers/twitch/types.js"
 
 /**

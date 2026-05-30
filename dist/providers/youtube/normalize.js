@@ -37,3 +37,31 @@ export function parseOptionalInteger(value) {
     const parsed = Number.parseInt(String(value), 10);
     return Number.isNaN(parsed) ? null : parsed;
 }
+export function normalizeYoutubeLivestream(item, options) {
+    let status = "unknown";
+    const liveBroadcastContent = item.snippet?.liveBroadcastContent;
+    if (liveBroadcastContent === "live") {
+        status = "live";
+    }
+    else if (liveBroadcastContent === "upcoming") {
+        status = "upcoming";
+    }
+    else if (liveBroadcastContent === "none") {
+        status = "ended";
+    }
+    const livestream = {
+        platform: YOUTUBE_PLATFORM,
+        streamId: item.id?.videoId ?? "",
+        title: item.snippet?.title ?? null,
+        channelId: item.snippet?.channelId ?? null,
+        channelDisplayName: item.snippet?.channelTitle ?? null,
+        status,
+        concurrentViewers: null,
+        startedAt: item.snippet?.publishedAt ?? null,
+        fetchedAt: new Date().toISOString(),
+    };
+    if (options.includeRaw) {
+        livestream.raw = item;
+    }
+    return livestream;
+}

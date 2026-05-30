@@ -4,6 +4,7 @@ import type {
     KickChannelResolveRequest,
     KickClientConfig,
     VideoMetricsRequest,
+    KickActiveLivestreamsRequest,
 } from "./types.js"
 
 type ValidatedKickClientConfig = KickClientConfig & (
@@ -185,4 +186,20 @@ export function validateChannelResolveRequest(
 
 export function normalizeKickSlug(value: string): string {
     return value.trim().toLowerCase()
+}
+
+export function validateActiveLivestreamsRequest(
+    request: unknown,
+): asserts request is KickActiveLivestreamsRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Active livestreams request is required.", {
+            platform: KICK_PLATFORM,
+        })
+    }
+
+    if (!("channelId" in request) || typeof request.channelId !== "string" || !request.channelId.trim()) {
+        throw new PlatformValidationError("channelId must be a non-empty string.", {
+            platform: KICK_PLATFORM,
+        })
+    }
 }

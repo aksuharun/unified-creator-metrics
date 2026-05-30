@@ -4,6 +4,7 @@ import { createKickChannelsClient } from "./channels.js";
 import { createKickChatClient } from "./chat.js";
 import { resolveKickClientTokens, validateKickConfig } from "./validation.js";
 import { createKickVideosClient } from "./videos.js";
+import { createKickLivestreamsClient } from "./livestreams.js";
 /**
  * Create a Kick provider client.
  *
@@ -31,6 +32,9 @@ export function createKickClient(config) {
         chat: createKickChatClient({
             appAccessToken: tokens.appAccessToken,
             userAccessTokenProvider,
+        }),
+        livestreams: createKickLivestreamsClient({
+            appAccessToken: tokens.appAccessToken,
         }),
     };
 }

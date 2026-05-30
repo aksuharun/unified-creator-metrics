@@ -1,4 +1,4 @@
-import type { ChannelMetricsRequest, VideoMetricsRequest, TwitchChannelResolveRequest, TwitchClientConfig } from "./types.js";
+import type { ChannelMetricsRequest, VideoMetricsRequest, TwitchChannelResolveRequest, TwitchClientConfig, TwitchActiveLivestreamsRequest, TwitchScheduledLivestreamsRequest } from "./types.js";
 type ValidatedTwitchClientConfig = TwitchClientConfig & {
     clientId: string;
 } & ({
@@ -24,4 +24,6 @@ export declare function validateChannelResolveRequest(request: unknown): asserts
 export declare function validateChannelMetricsRequest(request: unknown): asserts request is ChannelMetricsRequest;
 export declare function validateVideoMetricsRequest(request: unknown): asserts request is VideoMetricsRequest;
 export declare function normalizeTwitchLogin(value: string): string;
+export declare function validateActiveLivestreamsRequest(request: unknown): asserts request is TwitchActiveLivestreamsRequest;
+export declare function validateScheduledLivestreamsRequest(request: unknown): asserts request is TwitchScheduledLivestreamsRequest;
 export {};

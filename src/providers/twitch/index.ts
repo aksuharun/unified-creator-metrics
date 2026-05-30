@@ -4,6 +4,7 @@ import { createTwitchChatClient } from "./chat.js"
 import { createTwitchChannelsClient } from "./channels.js"
 import { createTwitchPollsClient } from "./polls.js"
 import { createTwitchVideosClient } from "./videos.js"
+import { createTwitchLivestreamsClient } from "./livestreams.js"
 import { resolveTwitchClientTokens, validateTwitchConfig } from "./validation.js"
 import type { TwitchClient, TwitchClientConfig } from "./types.js"
 
@@ -39,6 +40,11 @@ export function createTwitchClient(config: TwitchClientConfig): TwitchClient {
         }),
         chat: createTwitchChatClient({
             clientId: config.clientId,
+            userAccessTokenProvider,
+        }),
+        livestreams: createTwitchLivestreamsClient({
+            clientId: config.clientId ?? "",
+            appAccessToken: tokens.appAccessToken,
             userAccessTokenProvider,
         }),
     }

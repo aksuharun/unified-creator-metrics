@@ -5,6 +5,7 @@ import { createGoogleYoutubeClient, } from "./google-client.js";
 import { validateYoutubeConfig } from "./validation.js";
 import { createYoutubePollsClient } from "./polls.js";
 import { createYoutubeVideosClient } from "./videos.js";
+import { createYoutubeLivestreamsClient } from "./livestreams.js";
 /**
  * Create a YouTube provider client.
  *
@@ -34,6 +35,9 @@ export function createYoutubeClient(config) {
             youtubeApiClient,
         }),
         chat: createYoutubeChatClient({
+            youtubeApiClient,
+        }),
+        livestreams: createYoutubeLivestreamsClient({
             youtubeApiClient,
         }),
     };

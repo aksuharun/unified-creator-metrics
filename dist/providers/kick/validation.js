@@ -107,3 +107,15 @@ export function validateChannelResolveRequest(request) {
 export function normalizeKickSlug(value) {
     return value.trim().toLowerCase();
 }
+export function validateActiveLivestreamsRequest(request) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Active livestreams request is required.", {
+            platform: KICK_PLATFORM,
+        });
+    }
+    if (!("channelId" in request) || typeof request.channelId !== "string" || !request.channelId.trim()) {
+        throw new PlatformValidationError("channelId must be a non-empty string.", {
+            platform: KICK_PLATFORM,
+        });
+    }
+}

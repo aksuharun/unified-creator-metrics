@@ -7,6 +7,8 @@ import type {
     VideoMetricsRequest,
     TwitchChannelResolveRequest,
     TwitchClientConfig,
+    TwitchActiveLivestreamsRequest,
+    TwitchScheduledLivestreamsRequest,
 } from "./types.js"
 
 type ValidatedTwitchClientConfig = TwitchClientConfig & {
@@ -237,4 +239,36 @@ export function validateVideoMetricsRequest(
 
 export function normalizeTwitchLogin(value: string): string {
     return value.trim().toLowerCase()
+}
+
+export function validateActiveLivestreamsRequest(
+    request: unknown,
+): asserts request is TwitchActiveLivestreamsRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Active livestreams request is required.", {
+            platform: TWITCH_PLATFORM,
+        })
+    }
+
+    if (!("channelId" in request) || typeof request.channelId !== "string" || !request.channelId.trim()) {
+        throw new PlatformValidationError("channelId must be a non-empty string.", {
+            platform: TWITCH_PLATFORM,
+        })
+    }
+}
+
+export function validateScheduledLivestreamsRequest(
+    request: unknown,
+): asserts request is TwitchScheduledLivestreamsRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Scheduled livestreams request is required.", {
+            platform: TWITCH_PLATFORM,
+        })
+    }
+
+    if (!("channelId" in request) || typeof request.channelId !== "string" || !request.channelId.trim()) {
+        throw new PlatformValidationError("channelId must be a non-empty string.", {
+            platform: TWITCH_PLATFORM,
+        })
+    }
 }

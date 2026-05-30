@@ -59,6 +59,20 @@ const smokeSuites = {
     "polls:twitch": [
         "twitch/create-end-poll.js",
     ],
+    livestreams: [
+        "youtube/fetch-livestreams.js",
+        "twitch/fetch-livestreams.js",
+        "kick/fetch-livestreams.js",
+    ],
+    "livestreams:youtube": [
+        "youtube/fetch-livestreams.js",
+    ],
+    "livestreams:twitch": [
+        "twitch/fetch-livestreams.js",
+    ],
+    "livestreams:kick": [
+        "kick/fetch-livestreams.js",
+    ],
 }
 
 const defaultExcludedSuites = new Set([
@@ -71,6 +85,10 @@ const defaultExcludedSuites = new Set([
     "polls",
     "polls:youtube",
     "polls:twitch",
+    "livestreams",
+    "livestreams:youtube",
+    "livestreams:twitch",
+    "livestreams:kick",
 ])
 
 async function main() {

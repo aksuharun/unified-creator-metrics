@@ -8,6 +8,7 @@ import {
 import { validateYoutubeConfig } from "./validation.js"
 import { createYoutubePollsClient } from "./polls.js"
 import { createYoutubeVideosClient } from "./videos.js"
+import { createYoutubeLivestreamsClient } from "./livestreams.js"
 import type { YoutubeClient, YoutubeClientConfig } from "./types.js"
 
 export type { GoogleYoutubeClient }
@@ -43,6 +44,9 @@ export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient 
             youtubeApiClient,
         }),
         chat: createYoutubeChatClient({
+            youtubeApiClient,
+        }),
+        livestreams: createYoutubeLivestreamsClient({
             youtubeApiClient,
         }),
     }

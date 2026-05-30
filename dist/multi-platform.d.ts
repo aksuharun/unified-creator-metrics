@@ -1,7 +1,7 @@
-import type { KickBanUserRequest, KickChannelResolveRequest, KickChannelResolveResult, KickChatStartResult, KickClient, KickChatListenRequest, KickDeleteMessageRequest, KickNodeWebhookRequest, KickSendMessageRequest, KickStopOptions, KickTimeoutUserRequest, KickUnbanUserRequest, KickWebhookRequest, KickWebhookResult, VideoMetricsRequest as KickVideoMetricsRequest } from "./providers/kick/types.js";
-import type { TwitchBanUserRequest, ChannelMetricsRequest as TwitchChannelMetricsRequest, TwitchCreatePollRequest, TwitchChatListenRequest, TwitchChatStartResult, TwitchChannelResolveRequest, TwitchChannelResolveResult, TwitchClient, TwitchDeleteMessageRequest, TwitchEndPollRequest, TwitchSendMessageRequest, TwitchStopOptions, TwitchTimeoutUserRequest, TwitchUnbanUserRequest, VideoMetricsRequest as TwitchVideoMetricsRequest } from "./providers/twitch/types.js";
-import type { BanUserResult, ChannelMetrics, ChatListener, ChatMessage, CreatePollResult, DeleteMessageResult, EndPollResult, Platform, SendMessageResult, TimeoutUserResult, UnbanUserResult, VideoMetrics } from "./types.js";
-import type { YoutubeBanUserRequest, ChannelMetricsRequest as YoutubeChannelMetricsRequest, YoutubeChannelResolveRequest, YoutubeChannelResolveResult, YoutubeChatListenRequest, YoutubeCreatePollRequest, YoutubeDeleteMessageRequest, YoutubeEndPollRequest, YoutubeSendMessageRequest, YoutubeChatStartResult, YoutubeTimeoutUserRequest, YoutubeUnbanUserRequest, VideoMetricsRequest as YoutubeVideoMetricsRequest, YoutubeClient } from "./providers/youtube/types.js";
+import type { KickBanUserRequest, KickChannelResolveRequest, KickChannelResolveResult, KickChatStartResult, KickClient, KickChatListenRequest, KickDeleteMessageRequest, KickNodeWebhookRequest, KickSendMessageRequest, KickStopOptions, KickTimeoutUserRequest, KickUnbanUserRequest, KickWebhookRequest, KickWebhookResult, VideoMetricsRequest as KickVideoMetricsRequest, KickActiveLivestreamsRequest } from "./providers/kick/types.js";
+import type { TwitchBanUserRequest, ChannelMetricsRequest as TwitchChannelMetricsRequest, TwitchCreatePollRequest, TwitchChatListenRequest, TwitchChatStartResult, TwitchChannelResolveRequest, TwitchChannelResolveResult, TwitchClient, TwitchDeleteMessageRequest, TwitchEndPollRequest, TwitchSendMessageRequest, TwitchStopOptions, TwitchTimeoutUserRequest, TwitchUnbanUserRequest, VideoMetricsRequest as TwitchVideoMetricsRequest, TwitchActiveLivestreamsRequest, TwitchScheduledLivestreamsRequest } from "./providers/twitch/types.js";
+import type { BanUserResult, ChannelMetrics, ChatListener, ChatMessage, CreatePollResult, DeleteMessageResult, EndPollResult, Platform, SendMessageResult, TimeoutUserResult, UnbanUserResult, VideoMetrics, Livestream } from "./types.js";
+import type { YoutubeBanUserRequest, ChannelMetricsRequest as YoutubeChannelMetricsRequest, YoutubeChannelResolveRequest, YoutubeChannelResolveResult, YoutubeChatListenRequest, YoutubeCreatePollRequest, YoutubeDeleteMessageRequest, YoutubeEndPollRequest, YoutubeSendMessageRequest, YoutubeChatStartResult, YoutubeTimeoutUserRequest, YoutubeUnbanUserRequest, VideoMetricsRequest as YoutubeVideoMetricsRequest, YoutubeClient, YoutubeActiveLivestreamsRequest, YoutubeScheduledLivestreamsRequest } from "./providers/youtube/types.js";
 /**
  * Provider clients available to the multi-platform router.
  */
@@ -167,6 +167,33 @@ export type MultiPlatformTwitchChatStartResult = TwitchChatStartResult & {
     platform: Extract<Platform, "twitch">;
 };
 export type MultiPlatformChatStartResult = readonly (MultiPlatformYoutubeChatStartResult | MultiPlatformTwitchChatStartResult | MultiPlatformKickChatStartResult)[];
+export type MultiPlatformYoutubeActiveLivestreamsRequest = YoutubeActiveLivestreamsRequest & {
+    platform: Extract<Platform, "youtube">;
+};
+export type MultiPlatformTwitchActiveLivestreamsRequest = TwitchActiveLivestreamsRequest & {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformKickActiveLivestreamsRequest = KickActiveLivestreamsRequest & {
+    platform: Extract<Platform, "kick">;
+};
+export type MultiPlatformActiveLivestreamsRequest = MultiPlatformYoutubeActiveLivestreamsRequest | MultiPlatformTwitchActiveLivestreamsRequest | MultiPlatformKickActiveLivestreamsRequest;
+export type MultiPlatformActiveLivestreamsBatchRequest = readonly MultiPlatformActiveLivestreamsRequest[];
+export type MultiPlatformYoutubeScheduledLivestreamsRequest = YoutubeScheduledLivestreamsRequest & {
+    platform: Extract<Platform, "youtube">;
+};
+export type MultiPlatformTwitchScheduledLivestreamsRequest = TwitchScheduledLivestreamsRequest & {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformScheduledLivestreamsRequest = MultiPlatformYoutubeScheduledLivestreamsRequest | MultiPlatformTwitchScheduledLivestreamsRequest;
+export type MultiPlatformScheduledLivestreamsBatchRequest = readonly MultiPlatformScheduledLivestreamsRequest[];
+export type MultiPlatformLivestreamsClient = {
+    getActive(request: MultiPlatformActiveLivestreamsRequest): Promise<Livestream[]>;
+    getActive(request: MultiPlatformActiveLivestreamsBatchRequest): Promise<Livestream[][]>;
+    getActive(request: MultiPlatformActiveLivestreamsRequest | MultiPlatformActiveLivestreamsBatchRequest): Promise<Livestream[] | Livestream[][]>;
+    getScheduled(request: MultiPlatformScheduledLivestreamsRequest): Promise<Livestream[]>;
+    getScheduled(request: MultiPlatformScheduledLivestreamsBatchRequest): Promise<Livestream[][]>;
+    getScheduled(request: MultiPlatformScheduledLivestreamsRequest | MultiPlatformScheduledLivestreamsBatchRequest): Promise<Livestream[] | Livestream[][]>;
+};
 export type MultiPlatformChatStopOptions = {
     twitch?: TwitchStopOptions;
     kick?: KickStopOptions;
@@ -248,6 +275,10 @@ export type MultiPlatformClient = {
    * Chat-related methods.
    */
     chats: MultiPlatformChatsClient;
+    /**
+     * Livestream-related methods.
+     */
+    livestreams: MultiPlatformLivestreamsClient;
 };
 /**
  * Create a client that routes normalized requests to provider-specific clients.

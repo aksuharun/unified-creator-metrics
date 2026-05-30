@@ -14,6 +14,9 @@ import type {
     BanUserResult,
     TimeoutUserResult,
     UnbanUserResult,
+    Livestream,
+    ActiveLivestreamsRequest,
+    ScheduledLivestreamsRequest,
 } from "../../types.js"
 import type { TwitchUserTokenUpdate } from "./auth.js"
 
@@ -510,6 +513,25 @@ export type TwitchUnbanUserRequest = {
 
 export type TwitchUnbanUserResult = UnbanUserResult<"twitch">
 
+/** Twitch active livestreams request. */
+export type TwitchActiveLivestreamsRequest = ActiveLivestreamsRequest
+
+/** Twitch scheduled livestreams request. */
+export type TwitchScheduledLivestreamsRequest = ScheduledLivestreamsRequest
+
+/** Twitch livestreams client. */
+export type TwitchLivestreamsClient = {
+    /** Fetch active streams for a Twitch broadcaster. */
+    getActive(
+        request: TwitchActiveLivestreamsRequest,
+    ): Promise<Livestream<"twitch">[]>
+
+    /** Fetch scheduled streams for a Twitch broadcaster. */
+    getScheduled(
+        request: TwitchScheduledLivestreamsRequest,
+    ): Promise<Livestream<"twitch">[]>
+}
+
 /**
  * Twitch provider client.
  */
@@ -538,4 +560,9 @@ export type TwitchClient = {
      * Chat-related methods.
      */
     chat: TwitchChatClient
+
+    /**
+     * Livestream-related methods.
+     */
+    livestreams: TwitchLivestreamsClient
 }

@@ -401,4 +401,51 @@ export type TimeoutUserResult<TPlatform extends Platform = Platform> = Moderatio
  * Result returned after successfully removing a ban or timeout.
  */
 export type UnbanUserResult<TPlatform extends Platform = Platform> = ModerationActionResult<TPlatform>;
+/**
+ * Normalized livestream status values across supported providers.
+ */
+export type LivestreamStatus = "live" | "upcoming" | "ended" | "unknown";
+/**
+ * Normalized active or scheduled livestream returned by a provider.
+ */
+export type Livestream<TPlatform extends Platform = Platform> = {
+    /** Source platform identifier. */
+    platform: TPlatform;
+    /** Provider-specific stream or broadcast id. */
+    streamId: string;
+    /** Human-readable stream title when available. */
+    title: string | null;
+    /** Provider-specific channel id when available. */
+    channelId: string | null;
+    /** Human-readable channel name when available. */
+    channelDisplayName: string | null;
+    /** Normalized livestream status. */
+    status: LivestreamStatus;
+    /** Current concurrent viewer count when live. */
+    concurrentViewers: number | null;
+    /** ISO timestamp for when the stream started or is scheduled to start. */
+    startedAt: string | null;
+    /** ISO timestamp for when the metric was normalized. */
+    fetchedAt: string;
+    /** Raw provider response, only present when `includeRaw` is true. */
+    raw?: unknown;
+};
+/**
+ * Request for active livestreams from a provider.
+ */
+export type ActiveLivestreamsRequest = {
+    /** Provider-specific channel id. */
+    channelId: string;
+    /** Include the provider raw response when supported. */
+    includeRaw?: boolean;
+};
+/**
+ * Request for scheduled livestreams from a provider.
+ */
+export type ScheduledLivestreamsRequest = {
+    /** Provider-specific channel id. */
+    channelId: string;
+    /** Include the provider raw response when supported. */
+    includeRaw?: boolean;
+};
 export {};

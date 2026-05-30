@@ -9,6 +9,8 @@ import type {
     VideoMetricsRequest,
     YoutubeChannelResolveRequest,
     YoutubeClientConfig,
+    YoutubeActiveLivestreamsRequest,
+    YoutubeScheduledLivestreamsRequest,
 } from "./types.js"
 
 type ValidatedYoutubeClientConfig = YoutubeClientConfig
@@ -154,4 +156,36 @@ export function normalizeYoutubeHandle(value: string): string {
     }
 
     return trimmed.startsWith("@") ? trimmed : `@${trimmed}`
+}
+
+export function validateActiveLivestreamsRequest(
+    request: unknown,
+): asserts request is YoutubeActiveLivestreamsRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Active livestreams request is required.", {
+            platform: YOUTUBE_PLATFORM,
+        })
+    }
+
+    if (!("channelId" in request) || typeof request.channelId !== "string" || !request.channelId.trim()) {
+        throw new PlatformValidationError("channelId must be a non-empty string.", {
+            platform: YOUTUBE_PLATFORM,
+        })
+    }
+}
+
+export function validateScheduledLivestreamsRequest(
+    request: unknown,
+): asserts request is YoutubeScheduledLivestreamsRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Scheduled livestreams request is required.", {
+            platform: YOUTUBE_PLATFORM,
+        })
+    }
+
+    if (!("channelId" in request) || typeof request.channelId !== "string" || !request.channelId.trim()) {
+        throw new PlatformValidationError("channelId must be a non-empty string.", {
+            platform: YOUTUBE_PLATFORM,
+        })
+    }
 }
