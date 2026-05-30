@@ -14,14 +14,16 @@ This package is under active development. If you install it from npm, prefer the
 - Listen for chat messages through a common event API across YouTube, Twitch, and Kick
 - Send chat messages through the library for YouTube and Kick, including multi-platform routing
 - Moderate chat across YouTube, Twitch, and Kick with shared verbs: `deleteMessage`, `banUser`, `timeoutUser`, and `unbanUser`
+- Create and end livestream polls on YouTube and Twitch
 
 ## Prerequisites
 
 - Node.js 18 or later
-- YouTube read operations need `apiKey` unless you provide `accessToken`, `oauth2Client`, or a `refreshToken`; sending chat messages needs authenticated access
-- Twitch needs `clientId`; use `appAccessToken` or `userAccessToken` for `channels.resolve()` and `videos.getMetrics()`, and `userAccessToken` or `userRefreshToken` for `channels.getMetrics()`, `chat.listen()` with `user:read:chat`, `chat.deleteMessage()` with `moderator:manage:chat_messages`, and `chat.banUser()` / `chat.timeoutUser()` / `chat.unbanUser()` with `moderator:manage:banned_users`
+- YouTube read operations need `apiKey` unless you provide `accessToken`, `oauth2Client`, or a `refreshToken`; chat writes, moderation, and polls need authenticated access
+- Twitch needs `clientId`; use `appAccessToken` or `userAccessToken` for `channels.resolve()` and `videos.getMetrics()`, and `userAccessToken` or `userRefreshToken` for `channels.getMetrics()`, `chat.listen()` with `user:read:chat`, `chat.deleteMessage()` with `moderator:manage:chat_messages`, `chat.banUser()` / `chat.timeoutUser()` / `chat.unbanUser()` with `moderator:manage:banned_users`, and `polls.create()` / `polls.end()` with `channel:manage:polls`
 - Kick uses `appAccessToken` for `channels.resolve()`, `videos.getMetrics()`, and `chat.listen()`; use `userAccessToken` or `userRefreshToken` for `chat.sendMessage()` and all moderation methods
 - Kick chat listeners manage webhook subscriptions, and `subscription: "ensure"` requires a stable public `webhook.callbackUrl`
+- Kick does not currently expose a documented public polls API, so polls are not available on the Kick provider client
 - When you use `userRefreshToken` for Twitch or Kick, persist `onUserTokenUpdate()` results because refresh tokens may rotate
 
 ## Installation
@@ -192,6 +194,42 @@ const kick = createKickClient({
 
 If you want to refresh tokens manually, the package also exports `refreshYoutubeAccessToken()`, `refreshTwitchAccessToken()`, and `refreshKickAccessToken()`.
 
+Polls are available on YouTube and Twitch provider clients, and through the multi-platform router:
+
+```js
+const youtubePoll = await client.polls.create({
+  platform: "youtube",
+  liveChatId: "Cg0KC2xpdmUtY2hhdC0x",
+  question: "Next topic?",
+  choices: ["APIs", "SDKs"],
+});
+
+await client.polls.end({
+  platform: "youtube",
+  pollId: youtubePoll.pollId,
+});
+
+const twitchPoll = await client.polls.create({
+  platform: "twitch",
+  broadcasterId: "1234",
+  question: "Heads or tails?",
+  choices: ["Heads", "Tails"],
+  durationSeconds: 120,
+  channelPointsPerVote: 100,
+});
+
+await client.polls.end({
+  platform: "twitch",
+  broadcasterId: "1234",
+  pollId: twitchPoll.pollId,
+});
+```
+
+Poll results return normalized lifecycle fields across providers:
+
+- `status`: `active`, `ended`, or `unknown`
+- `endReason`: `completed`, `cancelled`, `archived`, `moderated`, `invalid`, `unknown`, or `null` while active
+
 Chat listeners use the same event shape across providers. Sending chat messages through the library is available for YouTube, Twitch, and Kick.
 
 Moderation is available on every provider client and through `createMultiPlatformClient().chats` with the same verbs:
@@ -249,6 +287,7 @@ Notes:
 - [`tests/smoke`](./tests/smoke) contains real-credential smoke checks for read-oriented provider flows
 - [`tests/smoke`](./tests/smoke) also includes an opt-in `chat` suite that sends a test message, reads it through the chat listener, and deletes it after a short delay where supported
 - [`tests/smoke`](./tests/smoke) also includes an opt-in `moderation` suite that exercises `sendMessage()`, `deleteMessage()`, `banUser()`, `timeoutUser()`, and `unbanUser()` through the exported library clients instead of raw provider requests
+- [`tests/smoke`](./tests/smoke) also includes an opt-in `polls` suite that creates and ends real YouTube and Twitch polls
 - [`tests/manual`](./tests/manual) contains listener and send-message scripts that are intentionally excluded from the automated smoke suite
 
 ## Contributing
@@ -260,6 +299,7 @@ Notes:
 - Run `npm run test:smoke:chat:youtube`, `npm run test:smoke:chat:twitch`, or `npm run test:smoke:chat:kick` when only one provider has an available live chat fixture
 - Run `npm run test:smoke:auth` when you want to verify refresh-token integrations with real credentials
 - Run `npm run test:smoke:moderation` only when you have dedicated moderation fixtures; it mutates live chat state and is excluded from the default smoke run
+- Run `npm run test:smoke:polls`, `npm run test:smoke:polls:youtube`, or `npm run test:smoke:polls:twitch` only against live channels where creating visible polls is acceptable
 - Build with `npm run build` if you changed `src/`
 - Open a pull request with the problem statement and the resulting behavior
 
@@ -282,6 +322,12 @@ The moderation smoke suite additionally expects dedicated fixture targets:
 - YouTube: `YOUTUBE_MODERATION_USER_ID`, plus `YOUTUBE_LIVE_CHAT_ID` or `YOUTUBE_LIVE_VIDEO_ID`
 - Twitch: `TWITCH_MODERATION_USER_ID` and `TWITCH_DELETE_MESSAGE_ID`
 - Kick: `KICK_MODERATION_USER_ID`
+
+The polls smoke suite creates visible live polls and then ends them:
+
+- YouTube: `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`, plus `YOUTUBE_LIVE_CHAT_ID` or `YOUTUBE_LIVE_VIDEO_ID`
+- Twitch: `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_REFRESH_TOKEN`, and `TWITCH_BROADCASTER_ID` or `TWITCH_BROADCASTER_LOGIN`. The refresh token must cover `channel:manage:polls`, and the authenticated user must be the broadcaster.
+- Optional poll controls: `YOUTUBE_POLL_QUESTION`, `YOUTUBE_POLL_CHOICES`, `TWITCH_POLL_QUESTION`, `TWITCH_POLL_CHOICES`, `TWITCH_POLL_DURATION_SECONDS`, `TWITCH_POLL_CHANNEL_POINTS_PER_VOTE`
 
 ## Publishing
 

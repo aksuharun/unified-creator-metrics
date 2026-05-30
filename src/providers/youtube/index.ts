@@ -6,6 +6,7 @@ import {
     type GoogleYoutubeClient,
 } from "./google-client.js"
 import { validateYoutubeConfig } from "./validation.js"
+import { createYoutubePollsClient } from "./polls.js"
 import { createYoutubeVideosClient } from "./videos.js"
 import type { YoutubeClient, YoutubeClientConfig } from "./types.js"
 
@@ -36,6 +37,9 @@ export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient 
             youtubeApiClient,
         }),
         videos: createYoutubeVideosClient({
+            youtubeApiClient,
+        }),
+        polls: createYoutubePollsClient({
             youtubeApiClient,
         }),
         chat: createYoutubeChatClient({

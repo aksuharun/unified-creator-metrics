@@ -1,4 +1,4 @@
-import type { ChannelMetrics as SharedChannelMetrics, ChannelMetricsRequest as SharedChannelMetricsRequest, ChatListener, ChatMessage as SharedChatMessage, VideoMetrics as SharedVideoMetrics, VideoMetricsRequest as SharedVideoMetricsRequest, DeleteMessageResult, SendMessageResult, BanUserResult, TimeoutUserResult, UnbanUserResult } from "../../types.js";
+import type { ChannelMetrics as SharedChannelMetrics, ChannelMetricsRequest as SharedChannelMetricsRequest, ChatListener, ChatMessage as SharedChatMessage, CreatePollRequest, CreatePollResult, VideoMetrics as SharedVideoMetrics, VideoMetricsRequest as SharedVideoMetricsRequest, DeleteMessageResult, EndPollRequest, EndPollResult, SendMessageResult, BanUserResult, TimeoutUserResult, UnbanUserResult } from "../../types.js";
 import type { TwitchUserTokenUpdate } from "./auth.js";
 export type { TwitchUserTokenUpdate } from "./auth.js";
 /**
@@ -71,6 +71,62 @@ export type ChannelMetrics = SharedChannelMetrics<"twitch">;
  * Normalized video metrics returned by the Twitch provider.
  */
 export type VideoMetrics = SharedVideoMetrics<"twitch">;
+/**
+ * Request to create a Twitch poll.
+ */
+export type TwitchCreatePollRequest = CreatePollRequest & {
+    /**
+     * Twitch broadcaster id for the channel running the poll.
+     */
+    broadcasterId: string;
+    /**
+     * Poll duration in seconds. Twitch allows 15 to 1800 seconds.
+     */
+    durationSeconds: number;
+    /**
+     * Channel Points cost for each extra vote. When omitted, Channel Points
+     * voting is disabled.
+     */
+    channelPointsPerVote?: number;
+};
+/**
+ * Normalized result returned after creating a Twitch poll.
+ */
+export type TwitchCreatePollResult = CreatePollResult<"twitch">;
+/**
+ * Request to end a Twitch poll.
+ */
+export type TwitchEndPollRequest = EndPollRequest & {
+    /**
+     * Twitch broadcaster id for the channel running the poll.
+     */
+    broadcasterId: string;
+    /**
+     * Archive the poll after ending it so it is no longer publicly visible.
+     */
+    archive?: boolean;
+};
+/**
+ * Normalized result returned after ending a Twitch poll.
+ */
+export type TwitchEndPollResult = EndPollResult<"twitch">;
+/**
+ * Twitch poll methods.
+ */
+export type TwitchPollsClient = {
+    /**
+     * Create a poll in the broadcaster's channel.
+     *
+     * Requires `userAccessToken` with the `channel:manage:polls` scope.
+     */
+    create(request: TwitchCreatePollRequest): Promise<TwitchCreatePollResult>;
+    /**
+     * End an active poll in the broadcaster's channel.
+     *
+     * Requires `userAccessToken` with the `channel:manage:polls` scope.
+     */
+    end(request: TwitchEndPollRequest): Promise<TwitchEndPollResult>;
+};
 /**
  * Request to resolve a Twitch broadcaster id from a login.
  */
@@ -365,6 +421,10 @@ export type TwitchClient = {
      * Video-related methods.
      */
     videos: TwitchVideosClient;
+    /**
+     * Poll-related methods.
+     */
+    polls: TwitchPollsClient;
     /**
      * Chat-related methods.
      */

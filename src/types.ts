@@ -152,6 +152,147 @@ export type VideoMetrics<TPlatform extends Platform = Platform> = {
 }
 
 /**
+ * Normalized public poll status values across supported providers.
+ */
+export type PollStatus =
+    | "active"
+    | "ended"
+    | "unknown"
+
+/**
+ * Normalized reason describing how a poll ended when the provider exposes one.
+ */
+export type PollEndReason =
+    | "completed"
+    | "cancelled"
+    | "archived"
+    | "moderated"
+    | "invalid"
+    | "unknown"
+
+/**
+ * Normalized choice in a livestream poll.
+ */
+export type PollChoice = {
+    /**
+     * Provider-specific choice id when available.
+     */
+    id: string | null
+
+    /**
+     * Human-readable choice text.
+     */
+    text: string
+
+    /**
+     * Current vote tally when the provider returns it.
+     */
+    votes: number | null
+}
+
+/**
+ * Shared request fields for creating a livestream poll.
+ */
+export type CreatePollRequest = {
+    /**
+     * Poll question shown to viewers.
+     */
+    question: string
+
+    /**
+     * Poll choices shown to viewers.
+     */
+    choices: string[]
+
+    /**
+     * Include the provider raw response when supported.
+     */
+    includeRaw?: boolean
+}
+
+/**
+ * Shared request fields for ending an active livestream poll.
+ */
+export type EndPollRequest = {
+    /**
+     * Provider-specific poll id.
+     */
+    pollId: string
+
+    /**
+     * Include the provider raw response when supported.
+     */
+    includeRaw?: boolean
+}
+
+/**
+ * Normalized poll returned by a provider.
+ */
+export type Poll<TPlatform extends Platform = Platform> = {
+    /**
+     * Source platform identifier.
+     */
+    platform: TPlatform
+
+    /**
+     * Provider-specific poll id.
+     */
+    pollId: string
+
+    /**
+     * Poll question shown to viewers.
+     */
+    question: string | null
+
+    /**
+     * Normalized poll choices.
+     */
+    choices: PollChoice[]
+
+    /**
+     * Normalized provider poll status.
+     */
+    status: PollStatus
+
+    /**
+     * Normalized reason the poll ended when known.
+     */
+    endReason: PollEndReason | null
+
+    /**
+     * Poll duration in seconds when the provider returns it.
+     */
+    durationSeconds: number | null
+
+    /**
+     * ISO timestamp for when the provider says the poll was created.
+     */
+    createdAt: string | null
+
+    /**
+     * ISO timestamp for when the poll ended when known.
+     */
+    endedAt: string | null
+
+    /**
+     * Raw provider response, only present when requested and supported.
+     */
+    raw?: unknown
+}
+
+/**
+ * Result returned after successfully creating a livestream poll.
+ */
+export type CreatePollResult<TPlatform extends Platform = Platform> =
+    Poll<TPlatform>
+
+/**
+ * Result returned after successfully ending a livestream poll.
+ */
+export type EndPollResult<TPlatform extends Platform = Platform> =
+    Poll<TPlatform>
+
+/**
  * Normalized chat message event emitted by provider chat listeners.
  */
 export type ChatMessage<TPlatform extends Platform = Platform> = {

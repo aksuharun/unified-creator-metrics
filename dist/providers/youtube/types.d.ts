@@ -1,4 +1,4 @@
-import type { ChannelMetrics as SharedChannelMetrics, ChannelMetricsRequest as SharedChannelMetricsRequest, DeleteMessageResult, BanUserResult, ChatListener, ChatMessage as SharedChatMessage, TimeoutUserResult, UnbanUserResult, VideoMetrics as SharedVideoMetrics, VideoMetricsRequest as SharedVideoMetricsRequest, SendMessageResult } from "../../types.js";
+import type { ChannelMetrics as SharedChannelMetrics, ChannelMetricsRequest as SharedChannelMetricsRequest, CreatePollRequest, CreatePollResult, DeleteMessageResult, EndPollRequest, EndPollResult, BanUserResult, ChatListener, ChatMessage as SharedChatMessage, TimeoutUserResult, UnbanUserResult, VideoMetrics as SharedVideoMetrics, VideoMetricsRequest as SharedVideoMetricsRequest, SendMessageResult } from "../../types.js";
 import type { GoogleYoutubeAuthClient } from "./google-client.js";
 import type { YoutubeTokenRefreshResult } from "./auth.js";
 export type { YoutubeTokenRefreshResult } from "./auth.js";
@@ -63,6 +63,40 @@ export type VideoMetricsRequest = Omit<SharedVideoMetricsRequest, "metrics"> & {
  * Normalized video metrics returned by the YouTube provider.
  */
 export type VideoMetrics = SharedVideoMetrics<"youtube">;
+/**
+ * Request to create a YouTube live chat poll.
+ */
+export type YoutubeCreatePollRequest = CreatePollRequest & {
+    /**
+     * YouTube active live chat id.
+     */
+    liveChatId: string;
+};
+/**
+ * Normalized result returned after creating a YouTube live chat poll.
+ */
+export type YoutubeCreatePollResult = CreatePollResult<"youtube">;
+/**
+ * Request to end a YouTube live chat poll.
+ */
+export type YoutubeEndPollRequest = EndPollRequest;
+/**
+ * Normalized result returned after ending a YouTube live chat poll.
+ */
+export type YoutubeEndPollResult = EndPollResult<"youtube">;
+/**
+ * YouTube poll methods.
+ */
+export type YoutubePollsClient = {
+    /**
+     * Create a poll in the specified YouTube live chat.
+     */
+    create(request: YoutubeCreatePollRequest): Promise<YoutubeCreatePollResult>;
+    /**
+     * Close an active YouTube live chat poll.
+     */
+    end(request: YoutubeEndPollRequest): Promise<YoutubeEndPollResult>;
+};
 /**
  * Request to resolve a YouTube channel id from a public handle.
  */
@@ -321,6 +355,10 @@ export type YoutubeClient = {
      * Video-related methods.
    */
     videos: YoutubeVideosClient;
+    /**
+     * Poll-related methods.
+     */
+    polls: YoutubePollsClient;
     /**
    * Chat event methods.
    */

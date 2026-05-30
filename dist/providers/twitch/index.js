@@ -2,6 +2,7 @@ import { TWITCH_PLATFORM } from "./constants.js";
 import { createTwitchUserAccessTokenProvider } from "./auth.js";
 import { createTwitchChatClient } from "./chat.js";
 import { createTwitchChannelsClient } from "./channels.js";
+import { createTwitchPollsClient } from "./polls.js";
 import { createTwitchVideosClient } from "./videos.js";
 import { resolveTwitchClientTokens, validateTwitchConfig } from "./validation.js";
 /**
@@ -27,6 +28,10 @@ export function createTwitchClient(config) {
         videos: createTwitchVideosClient({
             clientId: config.clientId,
             appAccessToken: tokens.appAccessToken,
+            userAccessTokenProvider,
+        }),
+        polls: createTwitchPollsClient({
+            clientId: config.clientId,
             userAccessTokenProvider,
         }),
         chat: createTwitchChatClient({

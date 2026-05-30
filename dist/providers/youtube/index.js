@@ -3,6 +3,7 @@ import { createYoutubeChannelsClient } from "./channels.js";
 import { YOUTUBE_PLATFORM } from "./constants.js";
 import { createGoogleYoutubeClient, } from "./google-client.js";
 import { validateYoutubeConfig } from "./validation.js";
+import { createYoutubePollsClient } from "./polls.js";
 import { createYoutubeVideosClient } from "./videos.js";
 /**
  * Create a YouTube provider client.
@@ -27,6 +28,9 @@ export function createYoutubeClient(config) {
             youtubeApiClient,
         }),
         videos: createYoutubeVideosClient({
+            youtubeApiClient,
+        }),
+        polls: createYoutubePollsClient({
             youtubeApiClient,
         }),
         chat: createYoutubeChatClient({

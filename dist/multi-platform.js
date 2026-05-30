@@ -18,6 +18,7 @@ export function createMultiPlatformClient(config) {
     return {
         channels: createMultiPlatformChannelsClient(providers),
         videos: createMultiPlatformVideosClient(providers),
+        polls: createMultiPlatformPollsClient(providers),
         chats: createMultiPlatformChatsClient(providers),
     };
 }
@@ -41,6 +42,15 @@ function createMultiPlatformVideosClient(providers) {
         return dispatchVideoMetrics(request, providers);
     }
     return { getMetrics };
+}
+function createMultiPlatformPollsClient(providers) {
+    async function create(request) {
+        return dispatchCreatePoll(request, providers);
+    }
+    async function end(request) {
+        return dispatchEndPoll(request, providers);
+    }
+    return { create, end };
 }
 function createMultiPlatformChatsClient(providers) {
     function listen(request) {
@@ -222,6 +232,66 @@ function dispatchVideoMetrics(request, providers) {
         metrics: request.metrics,
         includeRaw: request.includeRaw,
     });
+}
+function dispatchCreatePoll(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Create poll request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.polls.create({
+            liveChatId: request.liveChatId,
+            question: request.question,
+            choices: request.choices,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.polls.create({
+            broadcasterId: request.broadcasterId,
+            question: request.question,
+            choices: request.choices,
+            durationSeconds: request.durationSeconds,
+            channelPointsPerVote: request.channelPointsPerVote,
+            includeRaw: request.includeRaw,
+        });
+    }
+    throw new PlatformValidationError(`Poll creation is not supported for platform "${String(request.platform)}".`, { platform: String(request.platform) });
+}
+function dispatchEndPoll(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("End poll request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.polls.end({
+            pollId: request.pollId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.polls.end({
+            broadcasterId: request.broadcasterId,
+            pollId: request.pollId,
+            archive: request.archive,
+            includeRaw: request.includeRaw,
+        });
+    }
+    throw new PlatformValidationError(`Poll ending is not supported for platform "${String(request.platform)}".`, { platform: String(request.platform) });
 }
 function dispatchSendMessage(request, providers) {
     if (!request || typeof request !== "object") {

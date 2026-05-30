@@ -21,6 +21,7 @@ import type {
 import type {
     TwitchBanUserRequest,
     ChannelMetricsRequest as TwitchChannelMetricsRequest,
+    TwitchCreatePollRequest,
     TwitchChatListenRequest,
     TwitchChatListener,
     TwitchChatStartResult,
@@ -28,6 +29,7 @@ import type {
     TwitchChannelResolveResult,
     TwitchClient,
     TwitchDeleteMessageRequest,
+    TwitchEndPollRequest,
     TwitchSendMessageRequest,
     TwitchStopOptions,
     TwitchTimeoutUserRequest,
@@ -39,7 +41,9 @@ import type {
     ChannelMetrics,
     ChatListener,
     ChatMessage,
+    CreatePollResult,
     DeleteMessageResult,
+    EndPollResult,
     Platform,
     SendMessageResult,
     TimeoutUserResult,
@@ -53,7 +57,9 @@ import type {
     YoutubeChannelResolveResult,
     YoutubeChatListenRequest,
     YoutubeChatListener,
+    YoutubeCreatePollRequest,
     YoutubeDeleteMessageRequest,
+    YoutubeEndPollRequest,
     YoutubeSendMessageRequest,
     YoutubeChatStartResult,
     YoutubeTimeoutUserRequest,
@@ -176,6 +182,32 @@ export type MultiPlatformVideoMetricsRequest =
 
 export type MultiPlatformVideoMetricsBatchRequest =
     readonly MultiPlatformVideoMetricsRequest[]
+
+export type MultiPlatformYoutubeCreatePollRequest =
+    YoutubeCreatePollRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformTwitchCreatePollRequest =
+    TwitchCreatePollRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformCreatePollRequest =
+    | MultiPlatformYoutubeCreatePollRequest
+    | MultiPlatformTwitchCreatePollRequest
+
+export type MultiPlatformYoutubeEndPollRequest = YoutubeEndPollRequest & {
+    platform: Extract<Platform, "youtube">
+}
+
+export type MultiPlatformTwitchEndPollRequest = TwitchEndPollRequest & {
+    platform: Extract<Platform, "twitch">
+}
+
+export type MultiPlatformEndPollRequest =
+    | MultiPlatformYoutubeEndPollRequest
+    | MultiPlatformTwitchEndPollRequest
 
 export type MultiPlatformYoutubeChatListenRequest = YoutubeChatListenRequest & {
     platform: Extract<Platform, "youtube">
@@ -360,6 +392,21 @@ export type MultiPlatformVideosClient = {
     getMetrics(request: MultiPlatformVideoMetricsBatchRequest): Promise<VideoMetrics[]>
 }
 
+/**
+ * Poll methods exposed by the multi-platform client.
+ */
+export type MultiPlatformPollsClient = {
+    /**
+     * Route a normalized poll creation request to the selected provider.
+     */
+    create(request: MultiPlatformCreatePollRequest): Promise<CreatePollResult>
+
+    /**
+     * Route a normalized poll end request to the selected provider.
+     */
+    end(request: MultiPlatformEndPollRequest): Promise<EndPollResult>
+}
+
 export type MultiPlatformChatsClient = {
     listen(
         request:
@@ -400,6 +447,11 @@ export type MultiPlatformClient = {
     videos: MultiPlatformVideosClient
 
     /**
+     * Poll-related methods.
+     */
+    polls: MultiPlatformPollsClient
+
+    /**
    * Chat-related methods.
    */
     chats: MultiPlatformChatsClient
@@ -427,6 +479,7 @@ export function createMultiPlatformClient(
     return {
         channels: createMultiPlatformChannelsClient(providers),
         videos: createMultiPlatformVideosClient(providers),
+        polls: createMultiPlatformPollsClient(providers),
         chats: createMultiPlatformChatsClient(providers),
     }
 }
@@ -487,6 +540,24 @@ function createMultiPlatformVideosClient(
     }
 
     return { getMetrics }
+}
+
+function createMultiPlatformPollsClient(
+    providers: MultiPlatformClientConfig,
+): MultiPlatformPollsClient {
+    async function create(
+        request: MultiPlatformCreatePollRequest,
+    ): Promise<CreatePollResult> {
+        return dispatchCreatePoll(request, providers)
+    }
+
+    async function end(
+        request: MultiPlatformEndPollRequest,
+    ): Promise<EndPollResult> {
+        return dispatchEndPoll(request, providers)
+    }
+
+    return { create, end }
 }
 
 function createMultiPlatformChatsClient(
@@ -818,6 +889,110 @@ function dispatchVideoMetrics(
         metrics: request.metrics,
         includeRaw: request.includeRaw,
     })
+}
+
+function dispatchCreatePoll(
+    request: MultiPlatformCreatePollRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<CreatePollResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Create poll request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.polls.create({
+            liveChatId: request.liveChatId,
+            question: request.question,
+            choices: request.choices,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.polls.create({
+            broadcasterId: request.broadcasterId,
+            question: request.question,
+            choices: request.choices,
+            durationSeconds: request.durationSeconds,
+            channelPointsPerVote: request.channelPointsPerVote,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    throw new PlatformValidationError(
+        `Poll creation is not supported for platform "${String(
+            (request as { platform?: unknown }).platform,
+        )}".`,
+        { platform: String((request as { platform?: unknown }).platform) },
+    )
+}
+
+function dispatchEndPoll(
+    request: MultiPlatformEndPollRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<EndPollResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("End poll request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.polls.end({
+            pollId: request.pollId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.polls.end({
+            broadcasterId: request.broadcasterId,
+            pollId: request.pollId,
+            archive: request.archive,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    throw new PlatformValidationError(
+        `Poll ending is not supported for platform "${String(
+            (request as { platform?: unknown }).platform,
+        )}".`,
+        { platform: String((request as { platform?: unknown }).platform) },
+    )
 }
 
 function dispatchSendMessage(

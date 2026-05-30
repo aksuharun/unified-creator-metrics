@@ -1,7 +1,7 @@
 import type { KickBanUserRequest, KickChannelResolveRequest, KickChannelResolveResult, KickChatStartResult, KickClient, KickChatListenRequest, KickDeleteMessageRequest, KickNodeWebhookRequest, KickSendMessageRequest, KickStopOptions, KickTimeoutUserRequest, KickUnbanUserRequest, KickWebhookRequest, KickWebhookResult, VideoMetricsRequest as KickVideoMetricsRequest } from "./providers/kick/types.js";
-import type { TwitchBanUserRequest, ChannelMetricsRequest as TwitchChannelMetricsRequest, TwitchChatListenRequest, TwitchChatStartResult, TwitchChannelResolveRequest, TwitchChannelResolveResult, TwitchClient, TwitchDeleteMessageRequest, TwitchSendMessageRequest, TwitchStopOptions, TwitchTimeoutUserRequest, TwitchUnbanUserRequest, VideoMetricsRequest as TwitchVideoMetricsRequest } from "./providers/twitch/types.js";
-import type { BanUserResult, ChannelMetrics, ChatListener, ChatMessage, DeleteMessageResult, Platform, SendMessageResult, TimeoutUserResult, UnbanUserResult, VideoMetrics } from "./types.js";
-import type { YoutubeBanUserRequest, ChannelMetricsRequest as YoutubeChannelMetricsRequest, YoutubeChannelResolveRequest, YoutubeChannelResolveResult, YoutubeChatListenRequest, YoutubeDeleteMessageRequest, YoutubeSendMessageRequest, YoutubeChatStartResult, YoutubeTimeoutUserRequest, YoutubeUnbanUserRequest, VideoMetricsRequest as YoutubeVideoMetricsRequest, YoutubeClient } from "./providers/youtube/types.js";
+import type { TwitchBanUserRequest, ChannelMetricsRequest as TwitchChannelMetricsRequest, TwitchCreatePollRequest, TwitchChatListenRequest, TwitchChatStartResult, TwitchChannelResolveRequest, TwitchChannelResolveResult, TwitchClient, TwitchDeleteMessageRequest, TwitchEndPollRequest, TwitchSendMessageRequest, TwitchStopOptions, TwitchTimeoutUserRequest, TwitchUnbanUserRequest, VideoMetricsRequest as TwitchVideoMetricsRequest } from "./providers/twitch/types.js";
+import type { BanUserResult, ChannelMetrics, ChatListener, ChatMessage, CreatePollResult, DeleteMessageResult, EndPollResult, Platform, SendMessageResult, TimeoutUserResult, UnbanUserResult, VideoMetrics } from "./types.js";
+import type { YoutubeBanUserRequest, ChannelMetricsRequest as YoutubeChannelMetricsRequest, YoutubeChannelResolveRequest, YoutubeChannelResolveResult, YoutubeChatListenRequest, YoutubeCreatePollRequest, YoutubeDeleteMessageRequest, YoutubeEndPollRequest, YoutubeSendMessageRequest, YoutubeChatStartResult, YoutubeTimeoutUserRequest, YoutubeUnbanUserRequest, VideoMetricsRequest as YoutubeVideoMetricsRequest, YoutubeClient } from "./providers/youtube/types.js";
 /**
  * Provider clients available to the multi-platform router.
  */
@@ -82,6 +82,20 @@ export type MultiPlatformTwitchVideoMetricsRequest = TwitchVideoMetricsRequest &
 };
 export type MultiPlatformVideoMetricsRequest = MultiPlatformYoutubeVideoMetricsRequest | MultiPlatformTwitchVideoMetricsRequest | MultiPlatformKickVideoMetricsRequest;
 export type MultiPlatformVideoMetricsBatchRequest = readonly MultiPlatformVideoMetricsRequest[];
+export type MultiPlatformYoutubeCreatePollRequest = YoutubeCreatePollRequest & {
+    platform: Extract<Platform, "youtube">;
+};
+export type MultiPlatformTwitchCreatePollRequest = TwitchCreatePollRequest & {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformCreatePollRequest = MultiPlatformYoutubeCreatePollRequest | MultiPlatformTwitchCreatePollRequest;
+export type MultiPlatformYoutubeEndPollRequest = YoutubeEndPollRequest & {
+    platform: Extract<Platform, "youtube">;
+};
+export type MultiPlatformTwitchEndPollRequest = TwitchEndPollRequest & {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformEndPollRequest = MultiPlatformYoutubeEndPollRequest | MultiPlatformTwitchEndPollRequest;
 export type MultiPlatformYoutubeChatListenRequest = YoutubeChatListenRequest & {
     platform: Extract<Platform, "youtube">;
 };
@@ -190,6 +204,19 @@ export type MultiPlatformVideosClient = {
     getMetrics(request: MultiPlatformVideoMetricsRequest): Promise<VideoMetrics>;
     getMetrics(request: MultiPlatformVideoMetricsBatchRequest): Promise<VideoMetrics[]>;
 };
+/**
+ * Poll methods exposed by the multi-platform client.
+ */
+export type MultiPlatformPollsClient = {
+    /**
+     * Route a normalized poll creation request to the selected provider.
+     */
+    create(request: MultiPlatformCreatePollRequest): Promise<CreatePollResult>;
+    /**
+     * Route a normalized poll end request to the selected provider.
+     */
+    end(request: MultiPlatformEndPollRequest): Promise<EndPollResult>;
+};
 export type MultiPlatformChatsClient = {
     listen(request: MultiPlatformChatListenRequest | MultiPlatformChatListenBatchRequest): MultiPlatformChatListener;
     /**
@@ -213,6 +240,10 @@ export type MultiPlatformClient = {
    * Video-related methods.
    */
     videos: MultiPlatformVideosClient;
+    /**
+     * Poll-related methods.
+     */
+    polls: MultiPlatformPollsClient;
     /**
    * Chat-related methods.
    */

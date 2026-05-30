@@ -49,6 +49,16 @@ const smokeSuites = {
         "twitch/moderate-chat-user.js",
         "kick/moderate-chat-user.js",
     ],
+    polls: [
+        "youtube/create-end-poll.js",
+        "twitch/create-end-poll.js",
+    ],
+    "polls:youtube": [
+        "youtube/create-end-poll.js",
+    ],
+    "polls:twitch": [
+        "twitch/create-end-poll.js",
+    ],
 }
 
 const defaultExcludedSuites = new Set([
@@ -58,6 +68,9 @@ const defaultExcludedSuites = new Set([
     "chat:kick",
     "auth",
     "moderation",
+    "polls",
+    "polls:youtube",
+    "polls:twitch",
 ])
 
 async function main() {
