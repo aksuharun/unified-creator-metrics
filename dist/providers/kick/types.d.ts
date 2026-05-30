@@ -92,6 +92,10 @@ export type KickChannelResolveResult = {
      */
     displayName: string | null;
     /**
+     * Profile image URL when available.
+     */
+    profilePictureUrl: string | null;
+    /**
      * ISO timestamp for when the identity was resolved.
      */
     fetchedAt: string;
@@ -110,6 +114,12 @@ export type KickChannelsClient = {
      * Requires `appAccessToken` on the provider config.
      */
     resolve(request: KickChannelResolveRequest): Promise<KickChannelResolveResult>;
+    /**
+     * Retrieve the authenticated user's Kick identity.
+     *
+     * Requires `userAccessToken` on the provider config.
+     */
+    getAuthenticatedUser(): Promise<KickChannelResolveResult>;
 };
 /**
  * Kick video metric methods.

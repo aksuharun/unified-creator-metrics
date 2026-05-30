@@ -214,6 +214,11 @@ export type TwitchChannelResolveResult = {
     displayName: string | null
 
     /**
+     * Profile image URL when available.
+     */
+    profilePictureUrl: string | null
+
+    /**
      * ISO timestamp for when the identity was resolved.
      */
     fetchedAt: string
@@ -243,6 +248,13 @@ export type TwitchChannelsClient = {
      * Requires `userAccessToken` on the provider config.
      */
     getMetrics(request: ChannelMetricsRequest): Promise<ChannelMetrics>
+
+    /**
+     * Retrieve the authenticated user's Twitch identity.
+     *
+     * Requires `userAccessToken` on the provider config.
+     */
+    getAuthenticatedUser(): Promise<TwitchChannelResolveResult>
 }
 
 /**

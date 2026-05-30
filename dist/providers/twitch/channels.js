@@ -36,6 +36,7 @@ export function createTwitchChannelsClient(options) {
                 broadcasterId: user.id,
                 login: user.login ?? login,
                 displayName: user.display_name ?? null,
+                profilePictureUrl: user.profile_image_url ?? null,
                 fetchedAt: new Date().toISOString(),
             };
             if (request.includeRaw === true) {
@@ -73,6 +74,32 @@ export function createTwitchChannelsClient(options) {
                 };
             }
             return result;
+        },
+        async getAuthenticatedUser() {
+            const userAccessTokenProvider = requireTwitchUserAccessTokenProvider(sharedUserAccessTokenProvider, "channels.getAuthenticatedUser()");
+            const userAccessToken = await userAccessTokenProvider.getAccessToken();
+            const url = new URL("https://api.twitch.tv/helix/users");
+            const response = await twitchApiFetch(url, {
+                clientId: options.clientId,
+                accessToken: userAccessToken,
+                accessTokenProvider: userAccessTokenProvider,
+            });
+            const payload = (await response.json());
+            const user = payload.data?.[0];
+            if (!user?.id) {
+                throw new PlatformApiError("Twitch authenticated user was not found.", {
+                    platform: TWITCH_PLATFORM,
+                    status: response.status,
+                });
+            }
+            return {
+                platform: TWITCH_PLATFORM,
+                broadcasterId: user.id,
+                login: user.login ?? "",
+                displayName: user.display_name ?? null,
+                profilePictureUrl: user.profile_image_url ?? null,
+                fetchedAt: new Date().toISOString(),
+            };
         },
     };
 }

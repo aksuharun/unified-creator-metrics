@@ -155,6 +155,15 @@ export type MultiPlatformChannelResolveResult =
     | TwitchChannelResolveResult
     | KickChannelResolveResult
 
+export type MultiPlatformYoutubeGetAuthenticatedUserRequest = { platform: Extract<Platform, "youtube"> }
+export type MultiPlatformTwitchGetAuthenticatedUserRequest = { platform: Extract<Platform, "twitch"> }
+export type MultiPlatformKickGetAuthenticatedUserRequest = { platform: Extract<Platform, "kick"> }
+
+export type MultiPlatformGetAuthenticatedUserRequest =
+    | MultiPlatformYoutubeGetAuthenticatedUserRequest
+    | MultiPlatformTwitchGetAuthenticatedUserRequest
+    | MultiPlatformKickGetAuthenticatedUserRequest
+
 /**
  * Request for normalized video metrics through the multi-platform router.
  */
@@ -451,6 +460,13 @@ export type MultiPlatformChannelsClient = {
     getMetrics(
         request: MultiPlatformChannelMetricsBatchRequest,
     ): Promise<ChannelMetrics[]>
+
+    /**
+     * Retrieve the authenticated user's identity from the selected provider.
+     */
+    getAuthenticatedUser(
+        request: MultiPlatformGetAuthenticatedUserRequest,
+    ): Promise<MultiPlatformChannelResolveResult>
 }
 
 /**
@@ -591,7 +607,13 @@ function createMultiPlatformChannelsClient(
         return dispatchChannelMetrics(request, providers)
     }
 
-    return { resolve, getMetrics }
+    async function getAuthenticatedUser(
+        request: MultiPlatformGetAuthenticatedUserRequest,
+    ): Promise<MultiPlatformChannelResolveResult> {
+        return dispatchGetAuthenticatedUser(request, providers)
+    }
+
+    return { resolve, getMetrics, getAuthenticatedUser }
 }
 
 function createMultiPlatformVideosClient(
@@ -780,6 +802,61 @@ function dispatchChannelResolve(
 
     throw new PlatformValidationError(
         `Channel resolve is not supported for platform "${String(
+            (request as { platform?: unknown }).platform,
+        )}".`,
+        { platform: String((request as { platform?: unknown }).platform) },
+    )
+}
+
+function dispatchGetAuthenticatedUser(
+    request: MultiPlatformGetAuthenticatedUserRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<MultiPlatformChannelResolveResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Get authenticated user request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.channels.getAuthenticatedUser()
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.channels.getAuthenticatedUser()
+    }
+
+    if (request.platform === "kick") {
+        const provider = providers.kick
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.channels.getAuthenticatedUser()
+    }
+
+    throw new PlatformValidationError(
+        `Get authenticated user is not supported for platform "${String(
             (request as { platform?: unknown }).platform,
         )}".`,
         { platform: String((request as { platform?: unknown }).platform) },

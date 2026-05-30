@@ -28,6 +28,7 @@ export function createKickClient(config: KickClientConfig): KickClient {
         platform: KICK_PLATFORM,
         channels: createKickChannelsClient({
             appAccessToken: tokens.appAccessToken,
+            userAccessTokenProvider,
         }),
         videos: createKickVideosClient({
             appAccessToken: tokens.appAccessToken,

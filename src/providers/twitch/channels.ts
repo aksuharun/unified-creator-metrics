@@ -23,6 +23,7 @@ type TwitchUser = {
     id?: string
     login?: string
     display_name?: string
+    profile_image_url?: string
 }
 
 type TwitchChannelFollowersResponse = {
@@ -85,6 +86,7 @@ export function createTwitchChannelsClient(
                 broadcasterId: user.id,
                 login: user.login ?? login,
                 displayName: user.display_name ?? null,
+                profilePictureUrl: user.profile_image_url ?? null,
                 fetchedAt: new Date().toISOString(),
             } as const
 
@@ -136,6 +138,40 @@ export function createTwitchChannelsClient(
             }
 
             return result
+        },
+
+        async getAuthenticatedUser(): ReturnType<TwitchChannelsClient["getAuthenticatedUser"]> {
+            const userAccessTokenProvider = requireTwitchUserAccessTokenProvider(
+                sharedUserAccessTokenProvider,
+                "channels.getAuthenticatedUser()",
+            )
+            const userAccessToken = await userAccessTokenProvider.getAccessToken()
+
+            const url = new URL("https://api.twitch.tv/helix/users")
+            const response = await twitchApiFetch(url, {
+                clientId: options.clientId,
+                accessToken: userAccessToken,
+                accessTokenProvider: userAccessTokenProvider,
+            })
+
+            const payload = (await response.json()) as TwitchUsersResponse
+            const user = payload.data?.[0]
+
+            if (!user?.id) {
+                throw new PlatformApiError("Twitch authenticated user was not found.", {
+                    platform: TWITCH_PLATFORM,
+                    status: response.status,
+                })
+            }
+
+            return {
+                platform: TWITCH_PLATFORM,
+                broadcasterId: user.id,
+                login: user.login ?? "",
+                displayName: user.display_name ?? null,
+                profilePictureUrl: user.profile_image_url ?? null,
+                fetchedAt: new Date().toISOString(),
+            }
         },
     }
 }

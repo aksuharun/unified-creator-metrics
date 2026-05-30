@@ -179,6 +179,11 @@ export type YoutubeChannelResolveResult = {
     displayName: string | null
 
     /**
+     * Profile image URL when available.
+     */
+    profilePictureUrl: string | null
+
+    /**
      * ISO timestamp for when the identity was resolved.
      */
     fetchedAt: string
@@ -204,6 +209,11 @@ export type YoutubeChannelsClient = {
    * Fetch normalized channel metrics from the YouTube Data API.
    */
     getMetrics(request: ChannelMetricsRequest): Promise<ChannelMetrics>
+
+    /**
+     * Retrieve the authenticated user's YouTube identity.
+     */
+    getAuthenticatedUser(): Promise<YoutubeChannelResolveResult>
 }
 
 /**

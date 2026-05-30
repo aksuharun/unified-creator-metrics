@@ -59,6 +59,16 @@ export type MultiPlatformTwitchChannelResolveRequest = TwitchChannelResolveReque
 };
 export type MultiPlatformChannelResolveRequest = MultiPlatformYoutubeChannelResolveRequest | MultiPlatformTwitchChannelResolveRequest | MultiPlatformKickChannelResolveRequest;
 export type MultiPlatformChannelResolveResult = YoutubeChannelResolveResult | TwitchChannelResolveResult | KickChannelResolveResult;
+export type MultiPlatformYoutubeGetAuthenticatedUserRequest = {
+    platform: Extract<Platform, "youtube">;
+};
+export type MultiPlatformTwitchGetAuthenticatedUserRequest = {
+    platform: Extract<Platform, "twitch">;
+};
+export type MultiPlatformKickGetAuthenticatedUserRequest = {
+    platform: Extract<Platform, "kick">;
+};
+export type MultiPlatformGetAuthenticatedUserRequest = MultiPlatformYoutubeGetAuthenticatedUserRequest | MultiPlatformTwitchGetAuthenticatedUserRequest | MultiPlatformKickGetAuthenticatedUserRequest;
 /**
  * Request for normalized video metrics through the multi-platform router.
  */
@@ -220,6 +230,10 @@ export type MultiPlatformChannelsClient = {
    */
     getMetrics(request: MultiPlatformChannelMetricsRequest): Promise<ChannelMetrics>;
     getMetrics(request: MultiPlatformChannelMetricsBatchRequest): Promise<ChannelMetrics[]>;
+    /**
+     * Retrieve the authenticated user's identity from the selected provider.
+     */
+    getAuthenticatedUser(request: MultiPlatformGetAuthenticatedUserRequest): Promise<MultiPlatformChannelResolveResult>;
 };
 /**
  * Video metric methods exposed by the multi-platform client.

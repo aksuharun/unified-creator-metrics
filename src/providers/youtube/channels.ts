@@ -46,7 +46,7 @@ export function createYoutubeChannelsClient(
                     part: ["id", "snippet"],
                     forHandle: handle,
                     maxResults: 1,
-                    fields: "items(id,snippet(title))",
+                    fields: "items(id,snippet(title,thumbnails))",
                 })
             } catch (error) {
                 throw new PlatformApiError("YouTube API request failed.", {
@@ -65,11 +65,17 @@ export function createYoutubeChannelsClient(
                 })
             }
 
+            const profilePictureUrl = item.snippet?.thumbnails?.high?.url ??
+                item.snippet?.thumbnails?.medium?.url ??
+                item.snippet?.thumbnails?.default?.url ??
+                null
+
             const result = {
                 platform: YOUTUBE_PLATFORM,
                 channelId: String(item.id),
                 handle,
                 displayName: item.snippet?.title ?? null,
+                profilePictureUrl,
                 fetchedAt: new Date().toISOString(),
             } as const
 
@@ -119,6 +125,51 @@ export function createYoutubeChannelsClient(
             return normalizeYoutubeChannelMetrics(item, {
                 includeRaw: request.includeRaw === true,
             })
+        },
+
+        /**
+         * Retrieve the authenticated user's YouTube identity.
+         */
+        async getAuthenticatedUser(): ReturnType<YoutubeChannelsClient["getAuthenticatedUser"]> {
+            let response
+
+            try {
+                response = await options.youtubeApiClient.channels.list({
+                    part: ["id", "snippet"],
+                    mine: true,
+                    maxResults: 1,
+                    fields: "items(id,snippet(title,customUrl,thumbnails))",
+                })
+            } catch (error) {
+                throw new PlatformApiError("YouTube API request failed.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: getGoogleApiErrorStatus(error),
+                    cause: error,
+                })
+            }
+
+            const item = response.data.items?.[0]
+
+            if (!item?.id) {
+                throw new PlatformApiError("YouTube authenticated channel was not found.", {
+                    platform: YOUTUBE_PLATFORM,
+                    status: response.status,
+                })
+            }
+
+            const profilePictureUrl = item.snippet?.thumbnails?.high?.url ??
+                item.snippet?.thumbnails?.medium?.url ??
+                item.snippet?.thumbnails?.default?.url ??
+                null
+
+            return {
+                platform: YOUTUBE_PLATFORM,
+                channelId: String(item.id),
+                handle: item.snippet?.customUrl ?? "",
+                displayName: item.snippet?.title ?? null,
+                profilePictureUrl,
+                fetchedAt: new Date().toISOString(),
+            }
         },
     }
 }

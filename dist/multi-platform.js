@@ -33,7 +33,10 @@ function createMultiPlatformChannelsClient(providers) {
         }
         return dispatchChannelMetrics(request, providers);
     }
-    return { resolve, getMetrics };
+    async function getAuthenticatedUser(request) {
+        return dispatchGetAuthenticatedUser(request, providers);
+    }
+    return { resolve, getMetrics, getAuthenticatedUser };
 }
 function createMultiPlatformVideosClient(providers) {
     function getMetrics(request) {
@@ -116,6 +119,33 @@ function dispatchChannelResolve(request, providers) {
         });
     }
     throw new PlatformValidationError(`Channel resolve is not supported for platform "${String(request.platform)}".`, { platform: String(request.platform) });
+}
+function dispatchGetAuthenticatedUser(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Get authenticated user request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.channels.getAuthenticatedUser();
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.channels.getAuthenticatedUser();
+    }
+    if (request.platform === "kick") {
+        const provider = providers.kick;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.channels.getAuthenticatedUser();
+    }
+    throw new PlatformValidationError(`Get authenticated user is not supported for platform "${String(request.platform)}".`, { platform: String(request.platform) });
 }
 function dispatchChannelMetrics(request, providers) {
     if (!request || typeof request !== "object") {
