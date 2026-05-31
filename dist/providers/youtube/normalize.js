@@ -65,3 +65,40 @@ export function normalizeYoutubeLivestream(item, options) {
     }
     return livestream;
 }
+export function normalizeYoutubeAuthenticatedChannelLivestream(item, options) {
+    const livestream = {
+        platform: YOUTUBE_PLATFORM,
+        streamId: item.id ?? "",
+        title: item.snippet?.title ?? null,
+        channelId: item.snippet?.channelId ?? null,
+        channelDisplayName: null,
+        status: normalizeYoutubeBroadcastStatus(item.status?.lifeCycleStatus),
+        concurrentViewers: null,
+        startedAt: item.snippet?.actualStartTime ??
+            item.snippet?.scheduledStartTime ??
+            item.snippet?.publishedAt ??
+            null,
+        fetchedAt: new Date().toISOString(),
+    };
+    if (options.includeRaw) {
+        livestream.raw = item;
+    }
+    return livestream;
+}
+function normalizeYoutubeBroadcastStatus(status) {
+    switch (status) {
+        case "created":
+        case "ready":
+        case "testStarting":
+        case "testing":
+            return "upcoming";
+        case "live":
+        case "liveStarting":
+            return "live";
+        case "complete":
+        case "revoked":
+            return "ended";
+        default:
+            return "unknown";
+    }
+}

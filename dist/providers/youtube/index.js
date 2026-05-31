@@ -14,6 +14,7 @@ import { createYoutubeLivestreamsClient } from "./livestreams.js";
  */
 export function createYoutubeClient(config) {
     validateYoutubeConfig(config);
+    const hasAuthenticatedAccess = Boolean(config.oauth2Client || config.accessToken || config.refreshToken);
     const youtubeApiClient = createGoogleYoutubeClient({
         apiKey: config.apiKey,
         oauth2Client: config.oauth2Client,
@@ -39,6 +40,7 @@ export function createYoutubeClient(config) {
         }),
         livestreams: createYoutubeLivestreamsClient({
             youtubeApiClient,
+            hasAuthenticatedAccess,
         }),
     };
 }

@@ -4,7 +4,8 @@ import { createYoutubeLivestreamsClient } from "../../src/providers/youtube/live
 import type { GoogleYoutubeClient } from "../../src/providers/youtube/google-client.js"
 
 describe("createYoutubeLivestreamsClient", () => {
-    const list = vi.fn()
+    const searchList = vi.fn()
+    const liveBroadcastsList = vi.fn()
 
     beforeEach(() => {
         vi.clearAllMocks()
@@ -27,16 +28,17 @@ describe("createYoutubeLivestreamsClient", () => {
                     },
                 ],
             }
-            list.mockResolvedValue({
+            searchList.mockResolvedValue({
                 data: responseData,
             })
 
             const client = createYoutubeLivestreamsClient({
                 youtubeApiClient: {
                     search: {
-                        list,
+                        list: searchList,
                     },
                 } as unknown as GoogleYoutubeClient,
+                hasAuthenticatedAccess: false,
             })
 
             const result = await client.getActive({
@@ -44,7 +46,7 @@ describe("createYoutubeLivestreamsClient", () => {
                 includeRaw: true,
             })
 
-            expect(list).toHaveBeenCalledWith({
+            expect(searchList).toHaveBeenCalledWith({
                 part: ["snippet"],
                 channelId: "UCGy9vOmYGW7quWUxJMQbvUg",
                 type: ["video"],
@@ -68,8 +70,9 @@ describe("createYoutubeLivestreamsClient", () => {
         it("rejects blank channelId", async () => {
             const client = createYoutubeLivestreamsClient({
                 youtubeApiClient: {
-                    search: { list },
+                    search: { list: searchList },
                 } as unknown as GoogleYoutubeClient,
+                hasAuthenticatedAccess: false,
             })
 
             await expect(
@@ -77,19 +80,20 @@ describe("createYoutubeLivestreamsClient", () => {
                     channelId: "   ",
                 }),
             ).rejects.toBeInstanceOf(PlatformValidationError)
-            expect(list).not.toHaveBeenCalled()
+            expect(searchList).not.toHaveBeenCalled()
         })
 
         it("wraps Google API failures with platform context", async () => {
-            list.mockRejectedValue({
+            searchList.mockRejectedValue({
                 response: {
                     status: 403,
                 },
             })
             const client = createYoutubeLivestreamsClient({
                 youtubeApiClient: {
-                    search: { list },
+                    search: { list: searchList },
                 } as unknown as GoogleYoutubeClient,
+                hasAuthenticatedAccess: false,
             })
 
             await expect(
@@ -121,16 +125,17 @@ describe("createYoutubeLivestreamsClient", () => {
                     },
                 ],
             }
-            list.mockResolvedValue({
+            searchList.mockResolvedValue({
                 data: responseData,
             })
 
             const client = createYoutubeLivestreamsClient({
                 youtubeApiClient: {
                     search: {
-                        list,
+                        list: searchList,
                     },
                 } as unknown as GoogleYoutubeClient,
+                hasAuthenticatedAccess: false,
             })
 
             const result = await client.getScheduled({
@@ -138,7 +143,7 @@ describe("createYoutubeLivestreamsClient", () => {
                 includeRaw: true,
             })
 
-            expect(list).toHaveBeenCalledWith({
+            expect(searchList).toHaveBeenCalledWith({
                 part: ["snippet"],
                 channelId: "UCGy9vOmYGW7quWUxJMQbvUg",
                 type: ["video"],
@@ -162,8 +167,9 @@ describe("createYoutubeLivestreamsClient", () => {
         it("rejects blank channelId", async () => {
             const client = createYoutubeLivestreamsClient({
                 youtubeApiClient: {
-                    search: { list },
+                    search: { list: searchList },
                 } as unknown as GoogleYoutubeClient,
+                hasAuthenticatedAccess: false,
             })
 
             await expect(
@@ -171,7 +177,134 @@ describe("createYoutubeLivestreamsClient", () => {
                     channelId: "",
                 }),
             ).rejects.toBeInstanceOf(PlatformValidationError)
-            expect(list).not.toHaveBeenCalled()
+            expect(searchList).not.toHaveBeenCalled()
+        })
+    })
+
+    describe("getAuthenticatedChannelActive", () => {
+        it("fetches active streams for the authenticated YouTube channel", async () => {
+            const responseData = {
+                items: [
+                    {
+                        id: "youtube-stream-1",
+                        snippet: {
+                            title: "Live broadcast title",
+                            channelId: "UCGy9vOmYGW7quWUxJMQbvUg",
+                            actualStartTime: "2026-05-21T10:30:00Z",
+                        },
+                        status: {
+                            lifeCycleStatus: "live",
+                        },
+                    },
+                ],
+            }
+            liveBroadcastsList.mockResolvedValue({
+                data: responseData,
+            })
+
+            const client = createYoutubeLivestreamsClient({
+                youtubeApiClient: {
+                    liveBroadcasts: {
+                        list: liveBroadcastsList,
+                    },
+                } as unknown as GoogleYoutubeClient,
+                hasAuthenticatedAccess: true,
+            })
+
+            const result = await client.getAuthenticatedChannelActive({
+                includeRaw: true,
+            })
+
+            expect(liveBroadcastsList).toHaveBeenCalledWith({
+                part: ["id", "snippet", "status"],
+                broadcastStatus: "active",
+                broadcastType: "all",
+                fields:
+                    "items(id,snippet(channelId,title,publishedAt,scheduledStartTime,actualStartTime),status(lifeCycleStatus))",
+            })
+            expect(result).toEqual([
+                {
+                    platform: "youtube",
+                    streamId: "youtube-stream-1",
+                    title: "Live broadcast title",
+                    channelId: "UCGy9vOmYGW7quWUxJMQbvUg",
+                    channelDisplayName: null,
+                    status: "live",
+                    concurrentViewers: null,
+                    startedAt: "2026-05-21T10:30:00Z",
+                    fetchedAt: expect.any(String),
+                    raw: responseData.items[0],
+                },
+            ])
+        })
+
+        it("rejects the authenticated-channel lookup when no authenticated YouTube access is configured", async () => {
+            const client = createYoutubeLivestreamsClient({
+                youtubeApiClient: {
+                    liveBroadcasts: { list: liveBroadcastsList },
+                } as unknown as GoogleYoutubeClient,
+                hasAuthenticatedAccess: false,
+            })
+
+            await expect(
+                client.getAuthenticatedChannelActive(),
+            ).rejects.toBeInstanceOf(PlatformValidationError)
+            expect(liveBroadcastsList).not.toHaveBeenCalled()
+        })
+    })
+
+    describe("getAuthenticatedChannelScheduled", () => {
+        it("fetches scheduled streams for the authenticated YouTube channel", async () => {
+            const responseData = {
+                items: [
+                    {
+                        id: "youtube-scheduled-1",
+                        snippet: {
+                            title: "Upcoming broadcast title",
+                            channelId: "UCGy9vOmYGW7quWUxJMQbvUg",
+                            scheduledStartTime: "2026-05-22T14:00:00Z",
+                        },
+                        status: {
+                            lifeCycleStatus: "ready",
+                        },
+                    },
+                ],
+            }
+            liveBroadcastsList.mockResolvedValue({
+                data: responseData,
+            })
+
+            const client = createYoutubeLivestreamsClient({
+                youtubeApiClient: {
+                    liveBroadcasts: {
+                        list: liveBroadcastsList,
+                    },
+                } as unknown as GoogleYoutubeClient,
+                hasAuthenticatedAccess: true,
+            })
+
+            const result = await client.getAuthenticatedChannelScheduled()
+
+            expect(liveBroadcastsList).toHaveBeenCalledWith({
+                part: ["id", "snippet", "status"],
+                broadcastStatus: "upcoming",
+                broadcastType: "all",
+                fields:
+                    "items(id,snippet(channelId,title,publishedAt,scheduledStartTime,actualStartTime),status(lifeCycleStatus))",
+            })
+            expect(result).toEqual([
+                {
+                    platform: "youtube",
+                    streamId: "youtube-scheduled-1",
+                    title: "Upcoming broadcast title",
+                    channelId: "UCGy9vOmYGW7quWUxJMQbvUg",
+                    channelDisplayName: null,
+                    status: "upcoming",
+                    concurrentViewers: null,
+                    startedAt: "2026-05-22T14:00:00Z",
+                    fetchedAt: expect.any(String),
+                },
+            ])
         })
     })
 })

@@ -1,4 +1,4 @@
-import type { ChannelMetricsRequest, VideoMetricsRequest, YoutubeChannelResolveRequest, YoutubeClientConfig, YoutubeActiveLivestreamsRequest, YoutubeScheduledLivestreamsRequest } from "./types.js";
+import type { ChannelMetricsRequest, VideoMetricsRequest, YoutubeChannelResolveRequest, YoutubeClientConfig, YoutubeActiveLivestreamsRequest, YoutubeAuthenticatedChannelLivestreamsRequest, YoutubeScheduledLivestreamsRequest } from "./types.js";
 type ValidatedYoutubeClientConfig = YoutubeClientConfig;
 export declare function validateYoutubeConfig(config: unknown): asserts config is ValidatedYoutubeClientConfig;
 export declare function validateChannelMetricsRequest(request: unknown): asserts request is ChannelMetricsRequest;
@@ -7,4 +7,5 @@ export declare function validateVideoMetricsRequest(request: unknown): asserts r
 export declare function normalizeYoutubeHandle(value: string): string;
 export declare function validateActiveLivestreamsRequest(request: unknown): asserts request is YoutubeActiveLivestreamsRequest;
 export declare function validateScheduledLivestreamsRequest(request: unknown): asserts request is YoutubeScheduledLivestreamsRequest;
+export declare function validateAuthenticatedChannelLivestreamsRequest(request: unknown): asserts request is YoutubeAuthenticatedChannelLivestreamsRequest;
 export {};

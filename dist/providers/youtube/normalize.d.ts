@@ -11,3 +11,6 @@ export declare function parseOptionalInteger(value: unknown): number | null;
 export declare function normalizeYoutubeLivestream(item: youtube_v3.Schema$SearchResult, options: {
     includeRaw: boolean;
 }): Livestream<"youtube">;
+export declare function normalizeYoutubeAuthenticatedChannelLivestream(item: youtube_v3.Schema$LiveBroadcast, options: {
+    includeRaw: boolean;
+}): Livestream<"youtube">;

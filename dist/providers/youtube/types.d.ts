@@ -351,12 +351,21 @@ export type YoutubeChatClient = {
 export type YoutubeActiveLivestreamsRequest = ActiveLivestreamsRequest;
 /** YouTube scheduled livestreams request. */
 export type YoutubeScheduledLivestreamsRequest = ScheduledLivestreamsRequest;
+/** Request for authenticated-channel YouTube livestream lookups. */
+export type YoutubeAuthenticatedChannelLivestreamsRequest = {
+    /** Include the provider raw response when supported. */
+    includeRaw?: boolean;
+};
 /** YouTube livestreams client. */
 export type YoutubeLivestreamsClient = {
     /** Fetch active (currently live) streams for a channel. */
     getActive(request: YoutubeActiveLivestreamsRequest): Promise<Livestream<"youtube">[]>;
     /** Fetch scheduled (upcoming) streams for a channel. */
     getScheduled(request: YoutubeScheduledLivestreamsRequest): Promise<Livestream<"youtube">[]>;
+    /** Fetch active (currently live) streams for the authenticated YouTube channel. */
+    getAuthenticatedChannelActive(request?: YoutubeAuthenticatedChannelLivestreamsRequest): Promise<Livestream<"youtube">[]>;
+    /** Fetch scheduled (upcoming) streams for the authenticated YouTube channel. */
+    getAuthenticatedChannelScheduled(request?: YoutubeAuthenticatedChannelLivestreamsRequest): Promise<Livestream<"youtube">[]>;
 };
 /**
  * YouTube provider client.

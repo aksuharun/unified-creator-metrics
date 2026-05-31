@@ -90,3 +90,50 @@ export function normalizeYoutubeLivestream(
 
     return livestream
 }
+
+export function normalizeYoutubeAuthenticatedChannelLivestream(
+    item: youtube_v3.Schema$LiveBroadcast,
+    options: { includeRaw: boolean },
+): Livestream<"youtube"> {
+    const livestream: Livestream<"youtube"> = {
+        platform: YOUTUBE_PLATFORM,
+        streamId: item.id ?? "",
+        title: item.snippet?.title ?? null,
+        channelId: item.snippet?.channelId ?? null,
+        channelDisplayName: null,
+        status: normalizeYoutubeBroadcastStatus(item.status?.lifeCycleStatus),
+        concurrentViewers: null,
+        startedAt:
+            item.snippet?.actualStartTime ??
+            item.snippet?.scheduledStartTime ??
+            item.snippet?.publishedAt ??
+            null,
+        fetchedAt: new Date().toISOString(),
+    }
+
+    if (options.includeRaw) {
+        livestream.raw = item
+    }
+
+    return livestream
+}
+
+function normalizeYoutubeBroadcastStatus(
+    status: string | null | undefined,
+): "live" | "upcoming" | "ended" | "unknown" {
+    switch (status) {
+        case "created":
+        case "ready":
+        case "testStarting":
+        case "testing":
+            return "upcoming"
+        case "live":
+        case "liveStarting":
+            return "live"
+        case "complete":
+        case "revoked":
+            return "ended"
+        default:
+            return "unknown"
+    }
+}

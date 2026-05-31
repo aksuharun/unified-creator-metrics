@@ -1,7 +1,7 @@
-import { PlatformApiError } from "../../errors.js";
+import { PlatformApiError, PlatformValidationError } from "../../errors.js";
 import { YOUTUBE_PLATFORM } from "./constants.js";
-import { normalizeYoutubeLivestream } from "./normalize.js";
-import { validateActiveLivestreamsRequest, validateScheduledLivestreamsRequest, } from "./validation.js";
+import { normalizeYoutubeAuthenticatedChannelLivestream, normalizeYoutubeLivestream, } from "./normalize.js";
+import { validateActiveLivestreamsRequest, validateAuthenticatedChannelLivestreamsRequest, validateScheduledLivestreamsRequest, } from "./validation.js";
 /**
  * Create livestream methods for the YouTube provider.
  */
@@ -57,7 +57,50 @@ export function createYoutubeLivestreamsClient(options) {
             const includeRaw = request.includeRaw === true;
             return items.map((item) => normalizeYoutubeLivestream(item, { includeRaw }));
         },
+        /**
+         * Fetch active (currently live) streams for the authenticated YouTube channel.
+         */
+        async getAuthenticatedChannelActive(request) {
+            return listAuthenticatedChannelLivestreams(options, "active", request, "livestreams.getAuthenticatedChannelActive()");
+        },
+        /**
+         * Fetch scheduled (upcoming) streams for the authenticated YouTube channel.
+         */
+        async getAuthenticatedChannelScheduled(request) {
+            return listAuthenticatedChannelLivestreams(options, "upcoming", request, "livestreams.getAuthenticatedChannelScheduled()");
+        },
     };
+}
+async function listAuthenticatedChannelLivestreams(options, broadcastStatus, request, feature) {
+    validateAuthenticatedChannelLivestreamsRequest(request);
+    requireYoutubeAuthenticatedAccess(options.hasAuthenticatedAccess, feature);
+    let response;
+    try {
+        response = await options.youtubeApiClient.liveBroadcasts.list({
+            part: ["id", "snippet", "status"],
+            broadcastStatus,
+            broadcastType: "all",
+            fields: "items(id,snippet(channelId,title,publishedAt,scheduledStartTime,actualStartTime),status(lifeCycleStatus))",
+        });
+    }
+    catch (error) {
+        throw new PlatformApiError("YouTube API request failed.", {
+            platform: YOUTUBE_PLATFORM,
+            status: getGoogleApiErrorStatus(error),
+            cause: error,
+        });
+    }
+    const items = response.data.items ?? [];
+    const includeRaw = request?.includeRaw === true;
+    return items.map((item) => normalizeYoutubeAuthenticatedChannelLivestream(item, { includeRaw }));
+}
+function requireYoutubeAuthenticatedAccess(hasAuthenticatedAccess, feature) {
+    if (hasAuthenticatedAccess) {
+        return;
+    }
+    throw new PlatformValidationError(`YouTube accessToken, oauth2Client, or refreshToken is required for ${feature}.`, {
+        platform: YOUTUBE_PLATFORM,
+    });
 }
 function getGoogleApiErrorStatus(error) {
     if (!error || typeof error !== "object" || !("response" in error)) {

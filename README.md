@@ -146,6 +146,23 @@ console.log(metrics);
 
 For livestream metrics, `videoId` is the platform-specific lookup key for the active stream. That means a YouTube video id, a Twitch broadcaster id, or a Kick channel slug.
 
+When you want the signed-in creator's own YouTube livestreams, prefer the authenticated-channel methods instead of public channel search:
+
+```js
+import { createYoutubeClient } from "unified-creator-metrics";
+
+const youtube = createYoutubeClient({
+  clientId: process.env.YOUTUBE_CLIENT_ID,
+  clientSecret: process.env.YOUTUBE_CLIENT_SECRET,
+  refreshToken: process.env.YOUTUBE_REFRESH_TOKEN,
+});
+
+const active = await youtube.livestreams.getAuthenticatedChannelActive();
+const scheduled = await youtube.livestreams.getAuthenticatedChannelScheduled();
+```
+
+These methods call YouTube `liveBroadcasts.list` with authenticated access, which is typically much more quota-efficient than `search.list` for the creator's own channel.
+
 When one provider needs both token kinds, pass both into the same client:
 
 ```js

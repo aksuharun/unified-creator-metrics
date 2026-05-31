@@ -138,6 +138,7 @@ export type {
     YoutubeVideoMetric,
     YoutubeVideosClient,
     YoutubeActiveLivestreamsRequest,
+    YoutubeAuthenticatedChannelLivestreamsRequest,
     YoutubeScheduledLivestreamsRequest,
     YoutubeLivestreamsClient,
 } from "./providers/youtube/types.js"

@@ -8,6 +8,10 @@ export type YoutubeLivestreamsClientOptions = {
      * Official Google APIs YouTube client.
      */
     youtubeApiClient: GoogleYoutubeClient;
+    /**
+     * Whether the configured YouTube client can act on behalf of an authenticated channel.
+     */
+    hasAuthenticatedAccess: boolean;
 };
 /**
  * Create livestream methods for the YouTube provider.

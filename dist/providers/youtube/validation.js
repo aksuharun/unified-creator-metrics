@@ -125,3 +125,13 @@ export function validateScheduledLivestreamsRequest(request) {
         });
     }
 }
+export function validateAuthenticatedChannelLivestreamsRequest(request) {
+    if (request === undefined) {
+        return;
+    }
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Authenticated channel livestreams request must be an object when provided.", {
+            platform: YOUTUBE_PLATFORM,
+        });
+    }
+}

@@ -10,6 +10,7 @@ import type {
     YoutubeChannelResolveRequest,
     YoutubeClientConfig,
     YoutubeActiveLivestreamsRequest,
+    YoutubeAuthenticatedChannelLivestreamsRequest,
     YoutubeScheduledLivestreamsRequest,
 } from "./types.js"
 
@@ -187,5 +188,22 @@ export function validateScheduledLivestreamsRequest(
         throw new PlatformValidationError("channelId must be a non-empty string.", {
             platform: YOUTUBE_PLATFORM,
         })
+    }
+}
+
+export function validateAuthenticatedChannelLivestreamsRequest(
+    request: unknown,
+): asserts request is YoutubeAuthenticatedChannelLivestreamsRequest {
+    if (request === undefined) {
+        return
+    }
+
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError(
+            "Authenticated channel livestreams request must be an object when provided.",
+            {
+                platform: YOUTUBE_PLATFORM,
+            },
+        )
     }
 }

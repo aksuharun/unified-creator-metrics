@@ -22,6 +22,10 @@ export type { GoogleYoutubeClient }
 export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient {
     validateYoutubeConfig(config)
 
+    const hasAuthenticatedAccess = Boolean(
+        config.oauth2Client || config.accessToken || config.refreshToken,
+    )
+
     const youtubeApiClient = createGoogleYoutubeClient({
         apiKey: config.apiKey,
         oauth2Client: config.oauth2Client,
@@ -48,6 +52,7 @@ export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient 
         }),
         livestreams: createYoutubeLivestreamsClient({
             youtubeApiClient,
+            hasAuthenticatedAccess,
         }),
     }
 }
