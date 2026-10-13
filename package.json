@@ -1,6 +1,6 @@
 {
   "name": "unified-creator-metrics",
-  "version": "0.3.2",
+  "version": "0.3.3-next.0",
   "description": "Unified TypeScript client for normalized public-facing platform metrics.",
   "type": "module",
   "main": "./dist/index.js",
