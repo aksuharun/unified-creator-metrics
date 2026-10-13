@@ -173,41 +173,48 @@ export type YoutubeVideosClient = {
  * Normalized YouTube chat message event.
  */
 export type ChatMessage = SharedChatMessage<"youtube">;
-/**
- * Options for creating a YouTube chat listener.
- */
-export type YoutubeChatListenRequest = {
+type YoutubeChatListenTarget = {
+    /** YouTube active live chat id. Skips live video lookup. */
+    liveChatId: string;
+    liveVideoId?: never;
+} | {
+    /** YouTube livestream video id used to resolve the active live chat id. */
+    liveVideoId: string;
+    liveChatId?: never;
+};
+type YoutubeChatListenTransport = {
+    /** Use liveChatMessages.list polling. This is the default transport. */
+    transport?: "polling";
     /**
-   * YouTube livestream video id. Used to resolve the active live chat id.
-   */
-    liveVideoId?: string;
-    /**
-   * YouTube active live chat id. Use this to skip live video lookup.
-   */
-    liveChatId?: string;
-    /**
-   * Minimum polling interval. YouTube's returned polling interval is respected
-   * when it is higher.
-   */
-    pollingIntervalMs?: number;
-    /**
-   * Maximum messages to request per poll.
-   */
-    maxResults?: number;
-    /**
-   * Emit messages already present on the first fetch.
-   */
-    includeHistory?: boolean;
-    /**
-     * Maximum number of recently seen live chat message ids to keep for
-     * deduplication.
+     * Local minimum delay, 1 to 2147483647 ms; respects Google's higher interval.
+     * Defaults to 5000 ms.
      */
+    pollingIntervalMs?: number;
+    /** Google list page size, an integer from 200 to 2000. Defaults to 200. */
+    maxResults?: number;
+} | {
+    /** Use the gRPC streamList API. Reconnects open a new stream. */
+    transport: "streamList";
+    /** Polling-only option; rejected for streaming. */
+    pollingIntervalMs?: never;
+    /** Polling-only option; rejected for streaming. */
+    maxResults?: never;
+};
+/**
+ * YouTube listener options. Provide exactly one chat or video id and only
+ * options supported by the selected transport.
+ */
+export type YoutubeChatListenRequest = YoutubeChatListenTarget & YoutubeChatListenTransport & {
+    /**
+     * Locally emit messages from the initial response. Defaults to false.
+     * This does not request a full history or change Google's stream behavior.
+     */
+    includeHistory?: boolean;
+    /** Positive safe integer limiting local deduplication ids. Defaults to 1000. */
     maxRecentMessageIds?: number;
     /**
-     * Include provider-native data on emitted messages.
-     *
-     * The resulting `message.raw` shape is intentionally not standardized
-     * across platforms.
+     * Locally attach provider-native data to emitted messages.
+     * The raw shape differs between polling and decoded gRPC messages.
      */
     includeRaw?: boolean;
 };
@@ -216,7 +223,7 @@ export type YoutubeChatListenRequest = {
  */
 export type YoutubeChatStartResult = {
     /**
-     * Resolved YouTube live chat id used for polling.
+     * Resolved YouTube live chat id used by the listener.
      */
     liveChatId: string;
     /**

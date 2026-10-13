@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true
+  },
+  "include": [
+    "*.ts",
+    "../unit/youtube-chat-listener.test.ts",
+    "../unit/youtube-chat-stream.test.ts",
+    "../unit/multi-platform-chat-listener.test.ts"
+  ]
+}

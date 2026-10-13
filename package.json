@@ -16,9 +16,10 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-youtube-protocol.js",
     "prepublishOnly": "npm run build",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:types",
+    "test:types": "tsc --project tests/types/tsconfig.json",
     "test:smoke": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js\"",
     "test:smoke:youtube": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js youtube\"",
     "test:smoke:kick": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js kick\"",
@@ -40,6 +41,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test:manual:youtube:chat-listener": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/youtube/chat-listener.js\"",
+    "test:manual:youtube:chat-stream": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/youtube/chat-listener.js streamList\"",
     "test:manual:youtube:send-chat-message": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/youtube/send-chat-message.js\"",
     "test:manual:kick:chat-listener": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/kick/chat-listener.js\"",
     "test:manual:kick:send-chat-message": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/kick/send-chat-message.js\"",
@@ -58,6 +60,8 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.6",
+    "@grpc/proto-loader": "^0.8.1",
     "googleapis": "^171.4.0"
   },
   "devDependencies": {

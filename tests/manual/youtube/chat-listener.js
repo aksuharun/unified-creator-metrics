@@ -5,10 +5,15 @@ const youtube = createYoutubeClient({
     apiKey: requiredEnv("YOUTUBE_API_KEY"),
 })
 
+const transport = process.argv[2] ?? "polling"
+const target = process.env.YOUTUBE_LIVE_CHAT_ID
+    ? { liveChatId: requiredEnv("YOUTUBE_LIVE_CHAT_ID") }
+    : { liveVideoId: requiredEnv("YOUTUBE_LIVE_VIDEO_ID") }
 const chat = youtube.chat.listen({
-    liveVideoId: requiredEnv("YOUTUBE_LIVE_VIDEO_ID"),
+    ...target,
+    transport,
     includeHistory: false,
-    pollingIntervalMs: 5000,
+    ...(transport === "polling" ? { pollingIntervalMs: 5000 } : {}),
 })
 
 chat.on("message", (message) => {
@@ -23,7 +28,7 @@ chat.on("error", (error) => {
 
 const setup = await chat.start()
 
-console.log(`YouTube chat listener started for liveChatId=${setup.liveChatId}`)
+console.log(`YouTube ${transport} listener started for liveChatId=${setup.liveChatId}`)
 console.log("Press Ctrl+C to stop.")
 
 async function shutdown() {

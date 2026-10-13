@@ -184,17 +184,10 @@ function createChatSubscription(request, providers) {
         if (!provider) {
             throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
         }
+        const { platform, ...youtubeRequest } = request;
         return {
-            platform: "youtube",
-            listener: provider.chat.listen({
-                liveVideoId: request.liveVideoId,
-                liveChatId: request.liveChatId,
-                pollingIntervalMs: request.pollingIntervalMs,
-                maxResults: request.maxResults,
-                includeHistory: request.includeHistory,
-                maxRecentMessageIds: request.maxRecentMessageIds,
-                includeRaw: request.includeRaw,
-            }),
+            platform,
+            listener: provider.chat.listen(youtubeRequest),
         };
     }
     if (request.platform === "twitch") {

@@ -3,6 +3,14 @@ import { PlatformApiError, PlatformValidationError } from "../../errors.js"
 import { RecentIdTracker } from "../../recent-message-ids.js"
 import type { ChatMessage } from "../../types.js"
 import { YOUTUBE_PLATFORM } from "./constants.js"
+import {
+    createYoutubeChatStream,
+    isRetryableYoutubeChatStreamError,
+    normalizeYoutubeChatStreamError,
+    type YoutubeChatStream,
+    type YoutubeLiveChatMessage,
+    type YoutubeLiveChatMessagesPayload,
+} from "./chat-stream.js"
 import type { GoogleYoutubeClient } from "./google-client.js"
 import type {
     YoutubeBanUserRequest,
@@ -26,35 +34,24 @@ type YoutubeChatClientOptions = {
 }
 
 const DEFAULT_MAX_RECENT_MESSAGE_IDS = 1000
-
-type YoutubeLiveChatMessage = {
-    id?: string | null
-    snippet?: {
-        type?: string | null
-        publishedAt?: string | null
-        textMessageDetails?: {
-            messageText?: string | null
-        } | null
-    } | null
-    authorDetails?: {
-        channelId?: string | null
-        channelUrl?: string | null
-        displayName?: string | null
-    } | null
-}
+const STREAM_RECONNECT_INTERVAL_MS = 5000
+const MAX_POLLING_INTERVAL_MS = 2147483647
+const SUPPORTED_YOUTUBE_CHAT_LISTEN_OPTIONS = new Set([
+    "liveChatId",
+    "liveVideoId",
+    "transport",
+    "pollingIntervalMs",
+    "maxResults",
+    "includeHistory",
+    "maxRecentMessageIds",
+    "includeRaw",
+])
 
 type YoutubeChatSetup = {
     liveChatId: string
     liveVideoId: string | null
     channelId: string | null
     channelDisplayName: string | null
-}
-
-type YoutubeLiveChatMessagesPayload = {
-    items?: YoutubeLiveChatMessage[]
-    nextPageToken?: string | null
-    pollingIntervalMillis?: number | null
-    offlineAt?: string | null
 }
 
 type YoutubeLiveChatBan = {
@@ -374,7 +371,7 @@ function validateYoutubeModerationTargetRequest(
 }
 
 /**
- * YouTube chat listener implementation backed by live chat polling.
+ * YouTube chat listener backed by polling or a server-streaming connection.
  */
 class YoutubeChatListenerImpl
     extends ChatListenerEmitter<ChatMessage<"youtube">, YoutubeChatStartResult>
@@ -387,7 +384,10 @@ class YoutubeChatListenerImpl
     private pageToken: string | undefined
     private setup: YoutubeChatSetup | undefined
     private isStarted = false
-    private pollTimeout: ReturnType<typeof setTimeout> | undefined
+    private generation = 0
+    private startPromise: Promise<YoutubeChatStartResult> | undefined
+    private transportTimeout: ReturnType<typeof setTimeout> | undefined
+    private stream: YoutubeChatStream | undefined
 
     constructor(
         private readonly options: YoutubeChatClientOptions,
@@ -405,9 +405,13 @@ class YoutubeChatListenerImpl
     }
 
     /**
-     * Resolve live chat setup, fetch the initial page, and begin polling.
+     * Resolve live chat setup and start receiving messages.
      */
     async start(): Promise<YoutubeChatStartResult> {
+        if (this.startPromise) {
+            return this.startPromise
+        }
+
         if (this.isStarted && this.setup) {
             return {
                 liveChatId: this.setup.liveChatId,
@@ -415,82 +419,98 @@ class YoutubeChatListenerImpl
             }
         }
 
-        this.setup = await this.resolveSetup()
+        const generation = ++this.generation
         this.isStarted = true
+        this.startPromise = this.startListening(generation)
 
-        const payload = await this.listMessages()
-        this.pageToken = payload.nextPageToken ?? undefined
-
-        if (this.includeHistory) {
-            this.emitNewMessages(payload.items ?? [])
-        } else {
-            for (const message of payload.items ?? []) {
-                if (message.id) {
-                    this.seenMessageIds.remember(message.id)
-                }
+        try {
+            return await this.startPromise
+        } finally {
+            if (generation === this.generation) {
+                this.startPromise = undefined
             }
-        }
-
-        if (payload.offlineAt) {
-            this.isStarted = false
-        } else {
-            this.scheduleNextPoll(payload.pollingIntervalMillis ?? undefined)
-        }
-
-        return {
-            liveChatId: this.setup.liveChatId,
-            liveVideoId: this.setup.liveVideoId,
         }
     }
 
     /**
-     * Stop polling for additional YouTube live chat messages.
+     * Stop transport work without removing registered event handlers.
      */
     async stop(): Promise<void> {
         this.isStarted = false
+        this.generation++
+        this.startPromise = undefined
 
-        if (this.pollTimeout) {
-            clearTimeout(this.pollTimeout)
-            this.pollTimeout = undefined
+        if (this.transportTimeout) {
+            clearTimeout(this.transportTimeout)
+            this.transportTimeout = undefined
         }
 
+        this.stream?.close()
+        this.stream = undefined
         await super.stop()
+    }
+
+    /**
+     * Initialize transport work for a single listener run.
+     */
+    private async startListening(generation: number): Promise<YoutubeChatStartResult> {
+        try {
+            const setup = await this.resolveSetup()
+            this.assertCurrentRun(generation)
+            this.setup = setup
+
+            if (this.request.transport === "streamList") {
+                await this.openStream(generation, true)
+            } else {
+                const payload = await this.listMessages()
+                this.assertCurrentRun(generation)
+                this.processPayload(payload, generation, true)
+                this.scheduleNextPoll(generation, payload.pollingIntervalMillis ?? undefined)
+            }
+
+            return {
+                liveChatId: setup.liveChatId,
+                liveVideoId: setup.liveVideoId,
+            }
+        } catch (error) {
+            if (this.isCurrentRun(generation)) {
+                this.isStarted = false
+            }
+
+            throw error
+        }
     }
 
     /**
      * Poll the YouTube live chat API once and schedule the next iteration.
      */
-    private async poll(): Promise<void> {
-        if (!this.isStarted) {
+    private async poll(generation: number): Promise<void> {
+        if (!this.isCurrentRun(generation)) {
             return
         }
 
         try {
             const payload = await this.listMessages()
-            this.pageToken = payload.nextPageToken ?? undefined
-            this.emitNewMessages(payload.items ?? [])
 
-            if (payload.offlineAt) {
-                this.isStarted = false
+            if (!this.isCurrentRun(generation)) {
                 return
             }
 
-            this.scheduleNextPoll(payload.pollingIntervalMillis ?? undefined)
+            this.processPayload(payload, generation)
+            this.scheduleNextPoll(generation, payload.pollingIntervalMillis ?? undefined)
         } catch (error) {
-            this.emitError(error)
-
-            if (this.isStarted) {
-                this.scheduleNextPoll()
+            if (this.isCurrentRun(generation)) {
+                this.emitError(error)
+                this.scheduleNextPoll(generation)
             }
         }
     }
 
     /**
-     * Schedule the next poll using the larger of the configured interval and
-     * the provider-requested interval.
+     * Respect the larger of the configured and provider polling intervals.
      */
-    private scheduleNextPoll(providerPollingIntervalMs?: number): void {
-        if (!this.isStarted) {
+    private scheduleNextPoll(generation: number, providerPollingIntervalMs?: number): void {
+        if (!this.isCurrentRun(generation)) {
             return
         }
 
@@ -499,16 +519,211 @@ class YoutubeChatListenerImpl
             providerPollingIntervalMs ?? 0,
         )
 
-        this.pollTimeout = setTimeout(() => {
-            void this.poll()
-        }, delay)
+        this.schedulePollAfter(generation, delay)
+    }
+
+    /**
+     * Split long provider delays so Node does not clamp them to one millisecond.
+     */
+    private schedulePollAfter(generation: number, delay: number): void {
+        if (!this.isCurrentRun(generation)) {
+            return
+        }
+
+        const timeoutDelay = Math.min(delay, MAX_POLLING_INTERVAL_MS)
+        this.transportTimeout = setTimeout(() => {
+            if (delay > timeoutDelay) {
+                this.schedulePollAfter(generation, delay - timeoutDelay)
+            } else {
+                void this.poll(generation)
+            }
+        }, timeoutDelay)
+    }
+
+    /**
+     * Open a stream and wait for its first payload before reporting startup.
+     */
+    private async openStream(generation: number, isInitial = false): Promise<void> {
+        if (!this.setup) {
+            throw new PlatformValidationError(
+                "YouTube chat listener has not been started.",
+                { platform: YOUTUBE_PLATFORM },
+            )
+        }
+
+        const setup = this.setup
+        let stream: YoutubeChatStream | undefined
+
+        try {
+            stream = await createYoutubeChatStream(this.options.youtubeApiClient, {
+                liveChatId: setup.liveChatId,
+            })
+            this.assertCurrentRun(generation)
+            this.stream = stream
+
+            const iterator = stream.messages[Symbol.asyncIterator]()
+            const first = await iterator.next()
+            this.assertCurrentRun(generation)
+
+            if (first.done) {
+                throw new PlatformApiError(
+                    "YouTube live chat stream ended before returning messages.",
+                    { platform: YOUTUBE_PLATFORM, status: 503 },
+                )
+            }
+
+            this.processPayload(first.value, generation, isInitial)
+
+            if (this.isCurrentRun(generation)) {
+                void this.consumeStream(iterator, stream, generation)
+            } else {
+                stream.close()
+                if (this.stream === stream) {
+                    this.stream = undefined
+                }
+            }
+        } catch (error) {
+            stream?.close()
+            if (this.stream === stream) {
+                this.stream = undefined
+            }
+
+            throw error instanceof PlatformValidationError
+                ? error
+                : normalizeYoutubeChatStreamError(error)
+        }
+    }
+
+    /**
+     * Consume pushed payloads and open a new stream after a disconnect.
+     */
+    private async consumeStream(
+        iterator: AsyncIterator<YoutubeLiveChatMessagesPayload>,
+        stream: YoutubeChatStream,
+        generation: number,
+    ): Promise<void> {
+        let streamError: unknown
+
+        try {
+            while (this.isCurrentRun(generation)) {
+                const result = await iterator.next()
+
+                if (result.done || !this.isCurrentRun(generation)) {
+                    break
+                }
+
+                this.processPayload(result.value, generation)
+            }
+        } catch (error) {
+            streamError = error
+        } finally {
+            stream.close()
+            if (this.stream === stream) {
+                this.stream = undefined
+            }
+        }
+
+        if (!this.isCurrentRun(generation)) {
+            return
+        }
+
+        if (streamError) {
+            const retryable = isRetryableYoutubeChatStreamError(streamError)
+
+            if (!retryable) {
+                this.isStarted = false
+            }
+
+            this.emitError(normalizeYoutubeChatStreamError(streamError))
+
+            if (!retryable) {
+                return
+            }
+        }
+
+        this.scheduleStreamReconnect(generation)
+    }
+
+    /**
+     * Delay reconnects to avoid tight loops and unnecessary quota usage.
+     */
+    private scheduleStreamReconnect(generation: number): void {
+        if (!this.isCurrentRun(generation)) {
+            return
+        }
+
+        this.transportTimeout = setTimeout(async () => {
+            try {
+                await this.openStream(generation)
+            } catch (error) {
+                if (!this.isCurrentRun(generation)) {
+                    return
+                }
+
+                const retryable = isRetryableYoutubeChatStreamError(error)
+
+                if (!retryable) {
+                    this.isStarted = false
+                }
+
+                this.emitError(error)
+
+                if (retryable) {
+                    this.scheduleStreamReconnect(generation)
+                }
+            }
+        }, STREAM_RECONNECT_INTERVAL_MS)
+    }
+
+    /**
+     * Apply history filtering and track continuation tokens for polling only.
+     */
+    private processPayload(
+        payload: YoutubeLiveChatMessagesPayload,
+        generation: number,
+        isInitial = false,
+    ): void {
+        if (this.request.transport !== "streamList") {
+            this.pageToken = payload.nextPageToken ?? this.pageToken
+        }
+
+        if (isInitial && !this.includeHistory) {
+            for (const message of payload.items ?? []) {
+                if (message.id) {
+                    this.seenMessageIds.remember(message.id)
+                }
+            }
+        } else {
+            this.emitNewMessages(payload.items ?? [], generation)
+        }
+
+        if (payload.offlineAt && generation === this.generation) {
+            this.isStarted = false
+        }
+    }
+
+    private isCurrentRun(generation: number): boolean {
+        return this.isStarted && generation === this.generation
+    }
+
+    private assertCurrentRun(generation: number): void {
+        if (!this.isCurrentRun(generation)) {
+            throw new PlatformValidationError(
+                "YouTube chat listener was stopped before startup completed.",
+                { platform: YOUTUBE_PLATFORM },
+            )
+        }
     }
 
     /**
      * Deduplicate and emit newly observed text chat messages.
      */
-    private emitNewMessages(messages: YoutubeLiveChatMessage[]): void {
+    private emitNewMessages(messages: YoutubeLiveChatMessage[], generation: number): void {
         for (const message of messages) {
+            if (!this.isCurrentRun(generation)) {
+                return
+            }
+
             if (!message.id || !this.seenMessageIds.remember(message.id)) {
                 continue
             }
@@ -651,10 +866,38 @@ function normalizeYoutubeChatMessage(
 function validateYoutubeChatListenRequest(
     request: YoutubeChatListenRequest,
 ): asserts request is YoutubeChatListenRequest {
-    if (!request || typeof request !== "object") {
+    if (!request || typeof request !== "object" || Array.isArray(request)) {
         throw new PlatformValidationError("YouTube chat listen request is required.", {
             platform: YOUTUBE_PLATFORM,
         })
+    }
+
+    for (const option of Object.keys(request)) {
+        if (!SUPPORTED_YOUTUBE_CHAT_LISTEN_OPTIONS.has(option)) {
+            throw new PlatformValidationError(
+                `YouTube chat listen option "${option}" is not supported.`,
+                { platform: YOUTUBE_PLATFORM },
+            )
+        }
+    }
+
+    for (const option of ["liveChatId", "liveVideoId"] as const) {
+        if (
+            request[option] !== undefined &&
+            (typeof request[option] !== "string" || !request[option].trim())
+        ) {
+            throw new PlatformValidationError(
+                `${option} must be a non-empty string.`,
+                { platform: YOUTUBE_PLATFORM },
+            )
+        }
+    }
+
+    if (request.liveChatId !== undefined && request.liveVideoId !== undefined) {
+        throw new PlatformValidationError(
+            "Provide either liveChatId or liveVideoId, not both.",
+            { platform: YOUTUBE_PLATFORM },
+        )
     }
 
     if (!request.liveChatId && !request.liveVideoId) {
@@ -665,22 +908,55 @@ function validateYoutubeChatListenRequest(
     }
 
     if (
-        request.pollingIntervalMs !== undefined &&
-        (!Number.isInteger(request.pollingIntervalMs) ||
-            request.pollingIntervalMs <= 0)
+        request.transport !== undefined &&
+        request.transport !== "polling" &&
+        request.transport !== "streamList"
     ) {
         throw new PlatformValidationError(
-            "pollingIntervalMs must be a positive integer.",
+            "transport must be polling or streamList.",
+            { platform: YOUTUBE_PLATFORM },
+        )
+    }
+
+    if (request.transport === "streamList") {
+        for (const option of ["pollingIntervalMs", "maxResults"] as const) {
+            if (request[option] !== undefined) {
+                throw new PlatformValidationError(
+                    `${option} is only supported with the polling transport.`,
+                    { platform: YOUTUBE_PLATFORM },
+                )
+            }
+        }
+    }
+
+    for (const option of ["includeHistory", "includeRaw"] as const) {
+        if (request[option] !== undefined && typeof request[option] !== "boolean") {
+            throw new PlatformValidationError(
+                `${option} must be a boolean.`,
+                { platform: YOUTUBE_PLATFORM },
+            )
+        }
+    }
+
+    if (
+        request.pollingIntervalMs !== undefined &&
+        (!Number.isInteger(request.pollingIntervalMs) ||
+            request.pollingIntervalMs <= 0 ||
+            request.pollingIntervalMs > MAX_POLLING_INTERVAL_MS)
+    ) {
+        throw new PlatformValidationError(
+            `pollingIntervalMs must be an integer between 1 and ${MAX_POLLING_INTERVAL_MS}.`,
             { platform: YOUTUBE_PLATFORM },
         )
     }
 
     if (
         request.maxResults !== undefined &&
-        (!Number.isInteger(request.maxResults) || request.maxResults <= 0)
+        (!Number.isInteger(request.maxResults) ||
+            request.maxResults < 200 || request.maxResults > 2000)
     ) {
         throw new PlatformValidationError(
-            "maxResults must be a positive integer.",
+            "maxResults must be an integer between 200 and 2000.",
             { platform: YOUTUBE_PLATFORM },
         )
     }
@@ -688,12 +964,12 @@ function validateYoutubeChatListenRequest(
     if (
         request.maxRecentMessageIds !== undefined &&
         (
-            !Number.isInteger(request.maxRecentMessageIds) ||
+            !Number.isSafeInteger(request.maxRecentMessageIds) ||
             request.maxRecentMessageIds <= 0
         )
     ) {
         throw new PlatformValidationError(
-            "maxRecentMessageIds must be a positive integer.",
+            "maxRecentMessageIds must be a positive safe integer.",
             { platform: YOUTUBE_PLATFORM },
         )
     }

@@ -249,6 +249,48 @@ Poll results return normalized lifecycle fields across providers:
 
 Chat listeners use the same event shape across providers. Sending chat messages through the library is available for YouTube, Twitch, and Kick.
 
+YouTube listeners default to `liveChatMessages.list` polling. Opt into the low-latency `liveChatMessages.streamList` gRPC transport through the same listener API:
+
+```js
+const listener = youtube.chat.listen({
+  liveVideoId: "YOUR_LIVE_VIDEO_ID", // Or pass liveChatId directly.
+  transport: "streamList",
+  includeHistory: false,
+});
+
+listener.on("message", (message) => {
+  console.log(message.author.displayName, message.text);
+});
+listener.on("error", (error) => {
+  console.error(error);
+});
+
+const setup = await listener.start();
+// When finished:
+await listener.stop();
+```
+
+The same options are available through `client.chats.listen({ platform: "youtube", ... })`. Unsupported options fail validation instead of being silently ignored, including polling options supplied with `transport: "streamList"`.
+
+| Listener option | Effect |
+| --- | --- |
+| `liveChatId` | Sent to Google; provide this or `liveVideoId`, never both. |
+| `liveVideoId` | Local `videos.list` lookup of `activeLiveChatId` before connecting. |
+| `transport` | Local selection: `polling` (default) or gRPC `streamList`. |
+| `maxResults` | Polling-only Google page size, an integer from **200 to 2000**; library default **200**. Rejected for streaming. |
+| `pollingIntervalMs` | Polling-only local minimum delay, **1–2147483647 ms** (default **5000 ms**); respects Google's higher `pollingIntervalMillis`. Rejected for streaming. |
+| `includeHistory` | Local initial-response filtering; defaults to `false`. Does not request a full history or control Google's history delivery across subsequent responses. |
+| `maxRecentMessageIds` | Local bounded deduplication cache; positive safe integer, default **1000** ids. |
+| `includeRaw` | Locally attaches provider-native message data; gRPC uses decoded protobuf fields and enum names. |
+
+The gRPC request sends only `liveChatId` and the fixed supported `part` values: `id`, `snippet`, and `authorDetails`. API keys use `x-goog-api-key`; OAuth uses the existing Google auth client's request headers, refreshed for each connection. When OAuth and an API key are both configured, the existing client auth selection takes precedence over the API key.
+
+Google's [gRPC guide](https://developers.google.com/youtube/v3/live/streaming-live-chat) explicitly marks `max_results` as unused in streaming. Google's [streamList reference](https://developers.google.com/youtube/v3/live/docs/liveChatMessages/streamList) documents `pageToken`, but this implementation does **not** enable token-based streaming reconnection. Caller-provided `pageToken`, `hl`, `profileImageSize`, and other unexposed options are rejected. Polling pagination is managed internally.
+
+Streaming startup resolves after the first response; startup failures reject `start()`, while later failures reach `error` handlers. Reconnects open a new stream after five seconds and retain recently seen ids to filter replayed history. Terminal API errors or `offlineAt` stop the stream. Reconnection cannot guarantee gap-free delivery or suppress duplicates whose ids have left the bounded cache.
+
+For a read-only live check, run `npm run test:manual:youtube:chat-stream` with `YOUTUBE_API_KEY` and either `YOUTUBE_LIVE_CHAT_ID` or `YOUTUBE_LIVE_VIDEO_ID`. It listens until Ctrl+C without sending messages.
+
 Moderation is available on every provider client and through `createMultiPlatformClient().chats` with the same verbs:
 
 ```js
