@@ -7,9 +7,13 @@ import {
 } from "../helpers.js"
 
 async function main() {
+    const clientId = requiredEnv("TWITCH_CLIENT_ID")
+    const clientSecret = requiredEnv("TWITCH_CLIENT_SECRET")
+    const userRefreshToken = requiredEnv("TWITCH_REFRESH_TOKEN")
     const twitch = createTwitchClient({
-        clientId: requiredEnv("TWITCH_CLIENT_ID"),
-        accessToken: requiredEnv("TWITCH_APP_ACCESS_TOKEN"),
+        clientId,
+        clientSecret,
+        userRefreshToken,
     })
     const login = optionalEnv("TWITCH_BROADCASTER_LOGIN", "aksuharun")
 

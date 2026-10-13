@@ -2,14 +2,15 @@ import "dotenv/config"
 import {
     createKickClient,
     createMultiPlatformClient,
-    createYoutubeClient,
 } from "unified-creator-metrics"
 import {
+    createYoutubeClientFromEnv,
     getSmokeMessage,
     getKickUserAccessToken,
+    getYoutubeClientConfigFromEnv,
+    hasYoutubeRefreshTokenConfig,
     handleSmokeTestError,
     positiveIntegerEnv,
-    requiredEnv,
     resolveYoutubeLiveChatId,
 } from "../../smoke/helpers.js"
 
@@ -17,24 +18,21 @@ async function main() {
     const platform = process.env.CHAT_PLATFORM || "youtube"
     const client = createMultiPlatformClient({
         kick: process.env.KICK_USER_ACCESS_TOKEN
-            ? createKickClient({ accessToken: process.env.KICK_USER_ACCESS_TOKEN })
-            : undefined,
-        youtube: process.env.YOUTUBE_ACCESS_TOKEN
-            ? createYoutubeClient({
-                accessToken: process.env.YOUTUBE_ACCESS_TOKEN,
-                apiKey: process.env.YOUTUBE_API_KEY,
+            ? createKickClient({
+                userAccessToken: process.env.KICK_USER_ACCESS_TOKEN,
             })
+            : undefined,
+        youtube: hasYoutubeRefreshTokenConfig()
+            ? createYoutubeClientFromEnv()
             : undefined,
     })
 
     if (platform === "youtube") {
-        const accessToken = requiredEnv("YOUTUBE_ACCESS_TOKEN")
         const request = {
             platform,
-            liveChatId: await resolveYoutubeLiveChatId({
-                accessToken,
-                apiKey: process.env.YOUTUBE_API_KEY,
-            }),
+            liveChatId: await resolveYoutubeLiveChatId(
+                getYoutubeClientConfigFromEnv(),
+            ),
             text: getSmokeMessage("YOUTUBE_CHAT_MESSAGE"),
         }
 

@@ -9,7 +9,7 @@ import {
 async function main() {
     const twitch = createTwitchClient({
         clientId: requiredEnv("TWITCH_CLIENT_ID"),
-        accessToken: requiredEnv("TWITCH_USER_ACCESS_TOKEN"),
+        userAccessToken: requiredEnv("TWITCH_USER_ACCESS_TOKEN"),
     })
     let broadcasterId = process.env.TWITCH_BROADCASTER_ID
 

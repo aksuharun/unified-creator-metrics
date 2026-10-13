@@ -1,10 +1,14 @@
 {
   "name": "unified-creator-metrics",
-  "version": "0.1.0",
+  "version": "0.3.3-next.0",
   "description": "Unified TypeScript client for normalized public-facing platform metrics.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -12,35 +16,58 @@
     }
   },
   "scripts": {
-    "build": "tsc",
-    "test": "vitest run",
-    "test:smoke": "npm run build && node tests/smoke/run-smoke-tests.js",
-    "test:smoke:youtube": "npm run build && node tests/smoke/run-smoke-tests.js youtube",
-    "test:smoke:kick": "npm run build && node tests/smoke/run-smoke-tests.js kick",
-    "test:smoke:twitch": "npm run build && node tests/smoke/run-smoke-tests.js twitch",
-    "test:smoke:multi-platform": "npm run build && node tests/smoke/run-smoke-tests.js multi-platform",
+    "build": "tsc && node scripts/copy-youtube-protocol.js",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run && npm run test:types",
+    "test:types": "tsc --project tests/types/tsconfig.json",
+    "test:smoke": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js\"",
+    "test:smoke:youtube": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js youtube\"",
+    "test:smoke:kick": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js kick\"",
+    "test:smoke:twitch": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js twitch\"",
+    "test:smoke:multi-platform": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js multi-platform\"",
+    "test:smoke:chat": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js chat\"",
+    "test:smoke:chat:youtube": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js chat:youtube\"",
+    "test:smoke:chat:twitch": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js chat:twitch\"",
+    "test:smoke:chat:kick": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js chat:kick\"",
+    "test:smoke:auth": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js auth\"",
+    "test:smoke:moderation": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js moderation\"",
+    "test:smoke:polls": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js polls\"",
+    "test:smoke:polls:youtube": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js polls:youtube\"",
+    "test:smoke:polls:twitch": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js polls:twitch\"",
+    "test:smoke:livestreams": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js livestreams\"",
+    "test:smoke:livestreams:youtube": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js livestreams:youtube\"",
+    "test:smoke:livestreams:twitch": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js livestreams:twitch\"",
+    "test:smoke:livestreams:kick": "node scripts/with-varlock.js sh -c \"npm run build && node tests/smoke/run-smoke-tests.js livestreams:kick\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test:manual:youtube:chat-listener": "npm run build && node tests/manual/youtube/chat-listener.js",
-    "test:manual:youtube:send-chat-message": "npm run build && node tests/manual/youtube/send-chat-message.js",
-    "test:manual:kick:chat-listener": "npm run build && node tests/manual/kick/chat-listener.js",
-    "test:manual:kick:send-chat-message": "npm run build && node tests/manual/kick/send-chat-message.js",
-    "test:manual:twitch:chat-listener": "npm run build && node tests/manual/twitch/chat-listener.js",
-    "test:manual:twitch:send-chat-message": "npm run build && node tests/manual/twitch/send-chat-message.js",
+    "test:manual:youtube:chat-listener": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/youtube/chat-listener.js\"",
+    "test:manual:youtube:chat-stream": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/youtube/chat-listener.js streamList\"",
+    "test:manual:youtube:send-chat-message": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/youtube/send-chat-message.js\"",
+    "test:manual:kick:chat-listener": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/kick/chat-listener.js\"",
+    "test:manual:kick:send-chat-message": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/kick/send-chat-message.js\"",
+    "test:manual:twitch:chat-listener": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/twitch/chat-listener.js\"",
+    "test:manual:twitch:send-chat-message": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/twitch/send-chat-message.js\"",
     "playground:twitch:viewer-count": "node playground/twitch-live-viewer-count.js",
-    "test:manual:multi-platform:chat-listener": "npm run build && node tests/manual/multi-platform/chat-listener.js",
-    "test:manual:multi-platform:send-chat-message": "npm run build && node tests/manual/multi-platform/send-chat-message.js"
+    "test:manual:multi-platform:chat-listener": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/multi-platform/chat-listener.js\"",
+    "test:manual:multi-platform:send-chat-message": "node scripts/with-varlock.js sh -c \"npm run build && node tests/manual/multi-platform/send-chat-message.js\""
   },
   "engines": {
     "node": ">=18"
   },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
   "license": "MIT",
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.6",
+    "@grpc/proto-loader": "^0.8.1",
     "googleapis": "^171.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",
+    "@varlock/keepass-plugin": "^1.0.0",
     "dotenv": "^17.4.2",
     "eslint": "^10.4.0",
     "typescript": "^5.9.3",

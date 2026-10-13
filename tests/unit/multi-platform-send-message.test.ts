@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { PlatformValidationError } from "../../src/errors.js"
 import { createMultiPlatformClient } from "../../src/multi-platform.js"
 import type { KickClient } from "../../src/providers/kick/types.js"
+import type { TwitchClient } from "../../src/providers/twitch/types.js"
 import type { YoutubeClient } from "../../src/providers/youtube/types.js"
 
 describe("createMultiPlatformClient().chats.sendMessage", () => {
@@ -99,6 +100,41 @@ describe("createMultiPlatformClient().chats.sendMessage", () => {
             type: "bot",
             text: "Hello from bot",
             includeRaw: undefined,
+        })
+    })
+
+    it("routes Twitch requests to the Twitch provider", async () => {
+        const sendMessage = vi.fn().mockResolvedValue({
+            platform: "twitch",
+            messageId: "twitch-message-1",
+            sentAt: "2026-05-21T11:00:00.000Z",
+        })
+        const twitch = {
+            platform: "twitch",
+            chat: {
+                sendMessage,
+            },
+        } as unknown as TwitchClient
+        const client = createMultiPlatformClient({ twitch })
+
+        const result = await client.chats.sendMessage({
+            platform: "twitch",
+            broadcasterId: "123",
+            text: "Hello Twitch chat",
+            replyParentMessageId: "parent-1",
+            includeRaw: true,
+        })
+
+        expect(sendMessage).toHaveBeenCalledWith({
+            broadcasterId: "123",
+            text: "Hello Twitch chat",
+            replyParentMessageId: "parent-1",
+            includeRaw: true,
+        })
+        expect(result).toEqual({
+            platform: "twitch",
+            messageId: "twitch-message-1",
+            sentAt: "2026-05-21T11:00:00.000Z",
         })
     })
 

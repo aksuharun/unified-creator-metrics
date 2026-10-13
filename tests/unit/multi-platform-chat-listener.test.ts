@@ -1,52 +1,28 @@
 import { describe, expect, it, vi } from "vitest"
 import { createMultiPlatformClient } from "../../src/multi-platform.js"
+import { ChatListenerEmitter } from "../../src/chat-listener.js"
+import { PlatformValidationError } from "../../src/errors.js"
+import { createYoutubeClient } from "../../src/providers/youtube/index.js"
+import type { MultiPlatformYoutubeChatListenRequest } from "../../src/multi-platform.js"
+import type { ChatMessage } from "../../src/types.js"
 import type {
+    ChatMessage as YoutubeChatMessage,
+    YoutubeChatStartResult,
+    YoutubeClient,
+} from "../../src/providers/youtube/types.js"
+import type {
+    ChatMessage as TwitchChatMessage,
     TwitchChatListener,
+    TwitchChatStartResult,
     TwitchClient,
 } from "../../src/providers/twitch/types.js"
 
-class FakeTwitchChatListener implements TwitchChatListener {
-    private readonly messageHandlers = new Set<(message: unknown) => void>()
-    private readonly errorHandlers = new Set<(error: unknown) => void>()
+class FakeTwitchChatListener
+    extends ChatListenerEmitter<TwitchChatMessage, TwitchChatStartResult>
+    implements TwitchChatListener {
     readonly stop = vi.fn(async () => {})
 
-    on(
-        event: "message",
-        handler: (message: unknown) => void,
-    ): this
-    on(event: "error", handler: (error: unknown) => void): this
-    on(
-        event: "message" | "error",
-        handler: ((message: unknown) => void) | ((error: unknown) => void),
-    ): this {
-        if (event === "message") {
-            this.messageHandlers.add(handler as (message: unknown) => void)
-        } else {
-            this.errorHandlers.add(handler as (error: unknown) => void)
-        }
-
-        return this
-    }
-
-    off(
-        event: "message",
-        handler: (message: unknown) => void,
-    ): this
-    off(event: "error", handler: (error: unknown) => void): this
-    off(
-        event: "message" | "error",
-        handler: ((message: unknown) => void) | ((error: unknown) => void),
-    ): this {
-        if (event === "message") {
-            this.messageHandlers.delete(handler as (message: unknown) => void)
-        } else {
-            this.errorHandlers.delete(handler as (error: unknown) => void)
-        }
-
-        return this
-    }
-
-    async start() {
+    async start(): Promise<TwitchChatStartResult> {
         return {
             broadcasterId: "broadcaster-1",
             sessionId: "session-1",
@@ -55,14 +31,59 @@ class FakeTwitchChatListener implements TwitchChatListener {
         }
     }
 
-    emitMessage(message: unknown): void {
-        for (const handler of this.messageHandlers) {
-            handler(message)
-        }
+    emitMessage(message: TwitchChatMessage): void {
+        super.emitMessage(message)
     }
 }
 
 describe("createMultiPlatformClient().chats.listen", () => {
+    it("forwards the YouTube streamList transport and listener options", async () => {
+        const listener = new ChatListenerEmitter<YoutubeChatMessage, YoutubeChatStartResult>()
+        vi.spyOn(listener, "start").mockResolvedValue({ liveChatId: "chat-1", liveVideoId: null })
+        const listen = vi.fn().mockReturnValue(listener)
+        const youtube = {
+            platform: "youtube",
+            chat: { listen },
+        } as unknown as YoutubeClient
+        const client = createMultiPlatformClient({ youtube })
+        const chat = client.chats.listen({
+            platform: "youtube",
+            liveChatId: "chat-1",
+            transport: "streamList",
+            includeHistory: true,
+            includeRaw: true,
+            maxRecentMessageIds: 2500,
+        })
+
+        await expect(chat.start()).resolves.toEqual([
+            { platform: "youtube", liveChatId: "chat-1", liveVideoId: null },
+        ])
+        expect(listen).toHaveBeenCalledWith({
+            liveChatId: "chat-1",
+            transport: "streamList",
+            includeHistory: true,
+            includeRaw: true,
+            maxRecentMessageIds: 2500,
+        })
+        await chat.stop()
+    })
+
+    it.each([
+        { maxResults: 500 },
+        { pollingIntervalMs: 5000 },
+        { pageToken: "page-1" },
+        { includeHistory: "true" },
+        { liveVideoId: "video-1" },
+    ])("does not silently discard invalid YouTube options %j", (options) => {
+        const youtube = createYoutubeClient({ apiKey: "unused-test-key" })
+        const client = createMultiPlatformClient({ youtube })
+        const request = {
+            platform: "youtube", liveChatId: "chat-1", transport: "streamList", ...options,
+        }
+        expect(() => client.chats.listen(request as unknown as MultiPlatformYoutubeChatListenRequest))
+            .toThrow(PlatformValidationError)
+    })
+
     it("routes Twitch listeners and forwards their events", async () => {
         const listener = new FakeTwitchChatListener()
         const listen = vi.fn().mockReturnValue(listener)
@@ -80,7 +101,7 @@ describe("createMultiPlatformClient().chats.listen", () => {
             maxRecentMessageIds: 2500,
             keepaliveTimeoutSeconds: 30,
         })
-        const messages = []
+        const messages: ChatMessage[] = []
 
         chat.on("message", (message) => {
             messages.push(message)

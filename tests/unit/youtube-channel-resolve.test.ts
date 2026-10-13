@@ -17,6 +17,11 @@ describe("createYoutubeChannelsClient().resolve", () => {
                     id: "UCGy9vOmYGW7quWUxJMQbvUg",
                     snippet: {
                         title: "Aksu Harun",
+                        thumbnails: {
+                            high: {
+                                url: "https://youtube.com/avatar.png",
+                            },
+                        },
                     },
                 },
             ],
@@ -43,13 +48,14 @@ describe("createYoutubeChannelsClient().resolve", () => {
             part: ["id", "snippet"],
             forHandle: "@aksuharun",
             maxResults: 1,
-            fields: "items(id,snippet(title))",
+            fields: "items(id,snippet(title,thumbnails))",
         })
         expect(result).toEqual({
             platform: "youtube",
             channelId: "UCGy9vOmYGW7quWUxJMQbvUg",
             handle: "@aksuharun",
             displayName: "Aksu Harun",
+            profilePictureUrl: "https://youtube.com/avatar.png",
             fetchedAt: expect.any(String),
             raw: responseData,
         })
@@ -94,6 +100,62 @@ describe("createYoutubeChannelsClient().resolve", () => {
             name: "PlatformApiError",
             platform: "youtube",
             status: 403,
+        })
+    })
+})
+
+describe("createYoutubeChannelsClient().getAuthenticatedUser", () => {
+    const list = vi.fn()
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it("resolves the authenticated YouTube channel", async () => {
+        const responseData = {
+            items: [
+                {
+                    id: "UCGy9vOmYGW7quWUxJMQbvUg",
+                    snippet: {
+                        title: "Auth User",
+                        customUrl: "@authuser",
+                        thumbnails: {
+                            high: {
+                                url: "https://youtube.com/auth-avatar.png",
+                            },
+                        },
+                    },
+                },
+            ],
+        }
+        list.mockResolvedValue({
+            data: responseData,
+            status: 200,
+        })
+
+        const channels = createYoutubeChannelsClient({
+            youtubeApiClient: {
+                channels: {
+                    list,
+                },
+            } as unknown as GoogleYoutubeClient,
+        })
+
+        const result = await channels.getAuthenticatedUser()
+
+        expect(list).toHaveBeenCalledWith({
+            part: ["id", "snippet"],
+            mine: true,
+            maxResults: 1,
+            fields: "items(id,snippet(title,customUrl,thumbnails))",
+        })
+        expect(result).toEqual({
+            platform: "youtube",
+            channelId: "UCGy9vOmYGW7quWUxJMQbvUg",
+            handle: "@authuser",
+            displayName: "Auth User",
+            profilePictureUrl: "https://youtube.com/auth-avatar.png",
+            fetchedAt: expect.any(String),
         })
     })
 })

@@ -16,6 +16,7 @@ describe("createMultiPlatformClient().channels.resolve", () => {
             channelId: "youtube-channel-1",
             handle: "@aksuharun",
             displayName: "Aksu Harun",
+            profilePictureUrl: "https://youtube.com/avatar.png",
             fetchedAt: "2026-05-22T10:30:00.000Z",
         })
         const youtube = {
@@ -41,6 +42,7 @@ describe("createMultiPlatformClient().channels.resolve", () => {
             channelId: "youtube-channel-1",
             handle: "@aksuharun",
             displayName: "Aksu Harun",
+            profilePictureUrl: "https://youtube.com/avatar.png",
             fetchedAt: "2026-05-22T10:30:00.000Z",
         })
     })
@@ -51,6 +53,7 @@ describe("createMultiPlatformClient().channels.resolve", () => {
             broadcasterUserId: 123,
             slug: "aksuharun",
             displayName: "aksuharun",
+            profilePictureUrl: "https://kick.com/avatar.png",
             fetchedAt: "2026-05-22T10:45:00.000Z",
         })
         const kick = {
@@ -75,6 +78,7 @@ describe("createMultiPlatformClient().channels.resolve", () => {
             broadcasterUserId: 123,
             slug: "aksuharun",
             displayName: "aksuharun",
+            profilePictureUrl: "https://kick.com/avatar.png",
             fetchedAt: "2026-05-22T10:45:00.000Z",
         })
     })
@@ -85,6 +89,7 @@ describe("createMultiPlatformClient().channels.resolve", () => {
             broadcasterId: "123456",
             login: "aksuharun",
             displayName: "AksuHarun",
+            profilePictureUrl: "https://twitch.tv/avatar.png",
             fetchedAt: "2026-05-22T10:50:00.000Z",
         })
         const twitch = {
@@ -110,6 +115,7 @@ describe("createMultiPlatformClient().channels.resolve", () => {
             broadcasterId: "123456",
             login: "aksuharun",
             displayName: "AksuHarun",
+            profilePictureUrl: "https://twitch.tv/avatar.png",
             fetchedAt: "2026-05-22T10:50:00.000Z",
         })
     })
@@ -121,6 +127,118 @@ describe("createMultiPlatformClient().channels.resolve", () => {
             client.channels.resolve({
                 platform: "youtube",
                 handle: "@aksuharun",
+            }),
+        ).rejects.toBeInstanceOf(PlatformValidationError)
+    })
+})
+
+describe("createMultiPlatformClient().channels.getAuthenticatedUser", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it("routes YouTube authenticated user requests", async () => {
+        const getAuthenticatedUser = vi.fn().mockResolvedValue({
+            platform: "youtube",
+            channelId: "youtube-user-1",
+            handle: "@authuser",
+            displayName: "Auth User",
+            profilePictureUrl: "https://youtube.com/avatar.png",
+            fetchedAt: "2026-05-22T10:30:00.000Z",
+        })
+        const youtube = {
+            platform: "youtube",
+            channels: {
+                getAuthenticatedUser,
+            },
+        } as unknown as YoutubeClient
+        const client = createMultiPlatformClient({ youtube })
+
+        const result = await client.channels.getAuthenticatedUser({
+            platform: "youtube",
+        })
+
+        expect(getAuthenticatedUser).toHaveBeenCalledTimes(1)
+        expect(result).toEqual({
+            platform: "youtube",
+            channelId: "youtube-user-1",
+            handle: "@authuser",
+            displayName: "Auth User",
+            profilePictureUrl: "https://youtube.com/avatar.png",
+            fetchedAt: "2026-05-22T10:30:00.000Z",
+        })
+    })
+
+    it("routes Twitch authenticated user requests", async () => {
+        const getAuthenticatedUser = vi.fn().mockResolvedValue({
+            platform: "twitch",
+            broadcasterId: "twitch-user-1",
+            login: "authuser",
+            displayName: "Auth User",
+            profilePictureUrl: "https://twitch.tv/avatar.png",
+            fetchedAt: "2026-05-22T10:40:00.000Z",
+        })
+        const twitch = {
+            platform: "twitch",
+            channels: {
+                getAuthenticatedUser,
+            },
+        } as unknown as TwitchClient
+        const client = createMultiPlatformClient({ twitch })
+
+        const result = await client.channels.getAuthenticatedUser({
+            platform: "twitch",
+        })
+
+        expect(getAuthenticatedUser).toHaveBeenCalledTimes(1)
+        expect(result).toEqual({
+            platform: "twitch",
+            broadcasterId: "twitch-user-1",
+            login: "authuser",
+            displayName: "Auth User",
+            profilePictureUrl: "https://twitch.tv/avatar.png",
+            fetchedAt: "2026-05-22T10:40:00.000Z",
+        })
+    })
+
+    it("routes Kick authenticated user requests", async () => {
+        const getAuthenticatedUser = vi.fn().mockResolvedValue({
+            platform: "kick",
+            broadcasterUserId: 789,
+            slug: "authuser",
+            displayName: "authuser",
+            profilePictureUrl: "https://kick.com/avatar.png",
+            fetchedAt: "2026-05-22T10:50:00.000Z",
+        })
+        const kick = {
+            platform: "kick",
+            channels: {
+                getAuthenticatedUser,
+            },
+        } as unknown as KickClient
+        const client = createMultiPlatformClient({ kick })
+
+        const result = await client.channels.getAuthenticatedUser({
+            platform: "kick",
+        })
+
+        expect(getAuthenticatedUser).toHaveBeenCalledTimes(1)
+        expect(result).toEqual({
+            platform: "kick",
+            broadcasterUserId: 789,
+            slug: "authuser",
+            displayName: "authuser",
+            profilePictureUrl: "https://kick.com/avatar.png",
+            fetchedAt: "2026-05-22T10:50:00.000Z",
+        })
+    })
+
+    it("rejects when the selected provider is not configured", async () => {
+        const client = createMultiPlatformClient({})
+
+        await expect(
+            client.channels.getAuthenticatedUser({
+                platform: "youtube",
             }),
         ).rejects.toBeInstanceOf(PlatformValidationError)
     })

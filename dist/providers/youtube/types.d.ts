@@ -1,5 +1,7 @@
-import type { ChannelMetrics as SharedChannelMetrics, ChannelMetricsRequest as SharedChannelMetricsRequest, ChatListener, ChatMessage as SharedChatMessage, VideoMetrics as SharedVideoMetrics, VideoMetricsRequest as SharedVideoMetricsRequest, SendMessageResult } from "../../types.js";
+import type { ChannelMetrics as SharedChannelMetrics, ChannelMetricsRequest as SharedChannelMetricsRequest, CreatePollRequest, CreatePollResult, DeleteMessageResult, EndPollRequest, EndPollResult, BanUserResult, ChatListener, ChatMessage as SharedChatMessage, TimeoutUserResult, UnbanUserResult, VideoMetrics as SharedVideoMetrics, VideoMetricsRequest as SharedVideoMetricsRequest, SendMessageResult, Livestream, ActiveLivestreamsRequest, ScheduledLivestreamsRequest } from "../../types.js";
 import type { GoogleYoutubeAuthClient } from "./google-client.js";
+import type { YoutubeTokenRefreshResult } from "./auth.js";
+export type { YoutubeTokenRefreshResult } from "./auth.js";
 /**
  * Configuration required to create a YouTube provider client.
  */
@@ -16,6 +18,28 @@ export type YoutubeClientConfig = {
      * Raw OAuth 2.0 access token string.
      */
     accessToken?: string;
+    /**
+     * Google OAuth application client id.
+     *
+     * Required together with `clientSecret` when `refreshToken` is provided.
+     */
+    clientId?: string;
+    /**
+     * Google OAuth application client secret.
+     *
+     * Required together with `clientId` when `refreshToken` is provided.
+     */
+    clientSecret?: string;
+    /**
+     * Google OAuth refresh token used to obtain new YouTube access tokens
+     * without an interactive login.
+     */
+    refreshToken?: string;
+    /**
+     * Called whenever the internally managed Google OAuth client receives new
+     * token material.
+     */
+    onTokenUpdate?: (tokens: YoutubeTokenRefreshResult) => void | Promise<void>;
 };
 /**
  * YouTube-supported public channel metrics.
@@ -39,6 +63,40 @@ export type VideoMetricsRequest = Omit<SharedVideoMetricsRequest, "metrics"> & {
  * Normalized video metrics returned by the YouTube provider.
  */
 export type VideoMetrics = SharedVideoMetrics<"youtube">;
+/**
+ * Request to create a YouTube live chat poll.
+ */
+export type YoutubeCreatePollRequest = CreatePollRequest & {
+    /**
+     * YouTube active live chat id.
+     */
+    liveChatId: string;
+};
+/**
+ * Normalized result returned after creating a YouTube live chat poll.
+ */
+export type YoutubeCreatePollResult = CreatePollResult<"youtube">;
+/**
+ * Request to end a YouTube live chat poll.
+ */
+export type YoutubeEndPollRequest = EndPollRequest;
+/**
+ * Normalized result returned after ending a YouTube live chat poll.
+ */
+export type YoutubeEndPollResult = EndPollResult<"youtube">;
+/**
+ * YouTube poll methods.
+ */
+export type YoutubePollsClient = {
+    /**
+     * Create a poll in the specified YouTube live chat.
+     */
+    create(request: YoutubeCreatePollRequest): Promise<YoutubeCreatePollResult>;
+    /**
+     * Close an active YouTube live chat poll.
+     */
+    end(request: YoutubeEndPollRequest): Promise<YoutubeEndPollResult>;
+};
 /**
  * Request to resolve a YouTube channel id from a public handle.
  */
@@ -73,6 +131,10 @@ export type YoutubeChannelResolveResult = {
      */
     displayName: string | null;
     /**
+     * Profile image URL when available.
+     */
+    profilePictureUrl: string | null;
+    /**
      * ISO timestamp for when the identity was resolved.
      */
     fetchedAt: string;
@@ -93,6 +155,10 @@ export type YoutubeChannelsClient = {
    * Fetch normalized channel metrics from the YouTube Data API.
    */
     getMetrics(request: ChannelMetricsRequest): Promise<ChannelMetrics>;
+    /**
+     * Retrieve the authenticated user's YouTube identity.
+     */
+    getAuthenticatedUser(): Promise<YoutubeChannelResolveResult>;
 };
 /**
  * YouTube video metric methods.
@@ -107,41 +173,48 @@ export type YoutubeVideosClient = {
  * Normalized YouTube chat message event.
  */
 export type ChatMessage = SharedChatMessage<"youtube">;
-/**
- * Options for creating a YouTube chat listener.
- */
-export type YoutubeChatListenRequest = {
+type YoutubeChatListenTarget = {
+    /** YouTube active live chat id. Skips live video lookup. */
+    liveChatId: string;
+    liveVideoId?: never;
+} | {
+    /** YouTube livestream video id used to resolve the active live chat id. */
+    liveVideoId: string;
+    liveChatId?: never;
+};
+type YoutubeChatListenTransport = {
+    /** Use liveChatMessages.list polling. This is the default transport. */
+    transport?: "polling";
     /**
-   * YouTube livestream video id. Used to resolve the active live chat id.
-   */
-    liveVideoId?: string;
-    /**
-   * YouTube active live chat id. Use this to skip live video lookup.
-   */
-    liveChatId?: string;
-    /**
-   * Minimum polling interval. YouTube's returned polling interval is respected
-   * when it is higher.
-   */
-    pollingIntervalMs?: number;
-    /**
-   * Maximum messages to request per poll.
-   */
-    maxResults?: number;
-    /**
-   * Emit messages already present on the first fetch.
-   */
-    includeHistory?: boolean;
-    /**
-     * Maximum number of recently seen live chat message ids to keep for
-     * deduplication.
+     * Local minimum delay, 1 to 2147483647 ms; respects Google's higher interval.
+     * Defaults to 5000 ms.
      */
+    pollingIntervalMs?: number;
+    /** Google list page size, an integer from 200 to 2000. Defaults to 200. */
+    maxResults?: number;
+} | {
+    /** Use the gRPC streamList API. Reconnects open a new stream. */
+    transport: "streamList";
+    /** Polling-only option; rejected for streaming. */
+    pollingIntervalMs?: never;
+    /** Polling-only option; rejected for streaming. */
+    maxResults?: never;
+};
+/**
+ * YouTube listener options. Provide exactly one chat or video id and only
+ * options supported by the selected transport.
+ */
+export type YoutubeChatListenRequest = YoutubeChatListenTarget & YoutubeChatListenTransport & {
+    /**
+     * Locally emit messages from the initial response. Defaults to false.
+     * This does not request a full history or change Google's stream behavior.
+     */
+    includeHistory?: boolean;
+    /** Positive safe integer limiting local deduplication ids. Defaults to 1000. */
     maxRecentMessageIds?: number;
     /**
-     * Include provider-native data on emitted messages.
-     *
-     * The resulting `message.raw` shape is intentionally not standardized
-     * across platforms.
+     * Locally attach provider-native data to emitted messages.
+     * The raw shape differs between polling and decoded gRPC messages.
      */
     includeRaw?: boolean;
 };
@@ -150,7 +223,7 @@ export type YoutubeChatListenRequest = {
  */
 export type YoutubeChatStartResult = {
     /**
-     * Resolved YouTube live chat id used for polling.
+     * Resolved YouTube live chat id used by the listener.
      */
     liveChatId: string;
     /**
@@ -185,6 +258,74 @@ export type YoutubeSendMessageRequest = {
  */
 export type YoutubeSendMessageResult = SendMessageResult<"youtube">;
 /**
+ * Request to delete a YouTube live chat message.
+ */
+export type YoutubeDeleteMessageRequest = {
+    /**
+     * YouTube live chat message id.
+     */
+    messageId: string;
+    /**
+     * Include the provider-native delete response on the result.
+     */
+    includeRaw?: boolean;
+};
+export type YoutubeDeleteMessageResult = DeleteMessageResult<"youtube">;
+/**
+ * Request to permanently ban a user from a YouTube live chat.
+ */
+export type YoutubeBanUserRequest = {
+    /**
+     * YouTube active live chat id.
+     */
+    liveChatId: string;
+    /**
+     * YouTube channel id of the user to ban.
+     */
+    userId: string;
+    /**
+     * Include the provider-native insert response on the result.
+     */
+    includeRaw?: boolean;
+};
+export type YoutubeBanUserResult = BanUserResult<"youtube">;
+/**
+ * Request to temporarily ban a user from a YouTube live chat.
+ */
+export type YoutubeTimeoutUserRequest = {
+    /**
+     * YouTube active live chat id.
+     */
+    liveChatId: string;
+    /**
+     * YouTube channel id of the user to timeout.
+     */
+    userId: string;
+    /**
+     * Timeout duration in seconds.
+     */
+    durationSeconds: number;
+    /**
+     * Include the provider-native insert response on the result.
+     */
+    includeRaw?: boolean;
+};
+export type YoutubeTimeoutUserResult = TimeoutUserResult<"youtube">;
+/**
+ * Request to remove a YouTube live chat ban or timeout.
+ */
+export type YoutubeUnbanUserRequest = {
+    /**
+     * YouTube live chat ban id.
+     */
+    banId: string;
+    /**
+     * Include the provider-native delete response on the result.
+     */
+    includeRaw?: boolean;
+};
+export type YoutubeUnbanUserResult = UnbanUserResult<"youtube">;
+/**
  * YouTube chat event methods.
  */
 export type YoutubeChatClient = {
@@ -196,6 +337,42 @@ export type YoutubeChatClient = {
      * Send a normalized text message to the specified YouTube live chat.
      */
     sendMessage(request: YoutubeSendMessageRequest): Promise<YoutubeSendMessageResult>;
+    /**
+     * Delete a previously sent YouTube live chat message.
+     */
+    deleteMessage(request: YoutubeDeleteMessageRequest): Promise<YoutubeDeleteMessageResult>;
+    /**
+     * Permanently ban a user from the specified YouTube live chat.
+     */
+    banUser(request: YoutubeBanUserRequest): Promise<YoutubeBanUserResult>;
+    /**
+     * Temporarily ban a user from the specified YouTube live chat.
+     */
+    timeoutUser(request: YoutubeTimeoutUserRequest): Promise<YoutubeTimeoutUserResult>;
+    /**
+     * Remove a previously created YouTube live chat ban or timeout.
+     */
+    unbanUser(request: YoutubeUnbanUserRequest): Promise<YoutubeUnbanUserResult>;
+};
+/** YouTube active livestreams request. */
+export type YoutubeActiveLivestreamsRequest = ActiveLivestreamsRequest;
+/** YouTube scheduled livestreams request. */
+export type YoutubeScheduledLivestreamsRequest = ScheduledLivestreamsRequest;
+/** Request for authenticated-channel YouTube livestream lookups. */
+export type YoutubeAuthenticatedChannelLivestreamsRequest = {
+    /** Include the provider raw response when supported. */
+    includeRaw?: boolean;
+};
+/** YouTube livestreams client. */
+export type YoutubeLivestreamsClient = {
+    /** Fetch active (currently live) streams for a channel. */
+    getActive(request: YoutubeActiveLivestreamsRequest): Promise<Livestream<"youtube">[]>;
+    /** Fetch scheduled (upcoming) streams for a channel. */
+    getScheduled(request: YoutubeScheduledLivestreamsRequest): Promise<Livestream<"youtube">[]>;
+    /** Fetch active (currently live) streams for the authenticated YouTube channel. */
+    getAuthenticatedChannelActive(request?: YoutubeAuthenticatedChannelLivestreamsRequest): Promise<Livestream<"youtube">[]>;
+    /** Fetch scheduled (upcoming) streams for the authenticated YouTube channel. */
+    getAuthenticatedChannelScheduled(request?: YoutubeAuthenticatedChannelLivestreamsRequest): Promise<Livestream<"youtube">[]>;
 };
 /**
  * YouTube provider client.
@@ -214,7 +391,15 @@ export type YoutubeClient = {
    */
     videos: YoutubeVideosClient;
     /**
+     * Poll-related methods.
+     */
+    polls: YoutubePollsClient;
+    /**
    * Chat event methods.
    */
     chat: YoutubeChatClient;
+    /**
+     * Livestream-related methods.
+     */
+    livestreams: YoutubeLivestreamsClient;
 };

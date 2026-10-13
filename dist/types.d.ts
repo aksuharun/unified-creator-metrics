@@ -126,6 +126,114 @@ export type VideoMetrics<TPlatform extends Platform = Platform> = {
     raw?: unknown;
 };
 /**
+ * Normalized public poll status values across supported providers.
+ */
+export type PollStatus = "active" | "ended" | "unknown";
+/**
+ * Normalized reason describing how a poll ended when the provider exposes one.
+ */
+export type PollEndReason = "completed" | "cancelled" | "archived" | "moderated" | "invalid" | "unknown";
+/**
+ * Normalized choice in a livestream poll.
+ */
+export type PollChoice = {
+    /**
+     * Provider-specific choice id when available.
+     */
+    id: string | null;
+    /**
+     * Human-readable choice text.
+     */
+    text: string;
+    /**
+     * Current vote tally when the provider returns it.
+     */
+    votes: number | null;
+};
+/**
+ * Shared request fields for creating a livestream poll.
+ */
+export type CreatePollRequest = {
+    /**
+     * Poll question shown to viewers.
+     */
+    question: string;
+    /**
+     * Poll choices shown to viewers.
+     */
+    choices: string[];
+    /**
+     * Include the provider raw response when supported.
+     */
+    includeRaw?: boolean;
+};
+/**
+ * Shared request fields for ending an active livestream poll.
+ */
+export type EndPollRequest = {
+    /**
+     * Provider-specific poll id.
+     */
+    pollId: string;
+    /**
+     * Include the provider raw response when supported.
+     */
+    includeRaw?: boolean;
+};
+/**
+ * Normalized poll returned by a provider.
+ */
+export type Poll<TPlatform extends Platform = Platform> = {
+    /**
+     * Source platform identifier.
+     */
+    platform: TPlatform;
+    /**
+     * Provider-specific poll id.
+     */
+    pollId: string;
+    /**
+     * Poll question shown to viewers.
+     */
+    question: string | null;
+    /**
+     * Normalized poll choices.
+     */
+    choices: PollChoice[];
+    /**
+     * Normalized provider poll status.
+     */
+    status: PollStatus;
+    /**
+     * Normalized reason the poll ended when known.
+     */
+    endReason: PollEndReason | null;
+    /**
+     * Poll duration in seconds when the provider returns it.
+     */
+    durationSeconds: number | null;
+    /**
+     * ISO timestamp for when the provider says the poll was created.
+     */
+    createdAt: string | null;
+    /**
+     * ISO timestamp for when the poll ended when known.
+     */
+    endedAt: string | null;
+    /**
+     * Raw provider response, only present when requested and supported.
+     */
+    raw?: unknown;
+};
+/**
+ * Result returned after successfully creating a livestream poll.
+ */
+export type CreatePollResult<TPlatform extends Platform = Platform> = Poll<TPlatform>;
+/**
+ * Result returned after successfully ending a livestream poll.
+ */
+export type EndPollResult<TPlatform extends Platform = Platform> = Poll<TPlatform>;
+/**
  * Normalized chat message event emitted by provider chat listeners.
  */
 export type ChatMessage<TPlatform extends Platform = Platform> = {
@@ -232,3 +340,112 @@ export type SendMessageResult<TPlatform extends Platform = Platform> = {
      */
     raw?: unknown;
 };
+/**
+ * Result returned after successfully deleting a chat message.
+ */
+export type DeleteMessageResult<TPlatform extends Platform = Platform> = {
+    /**
+     * Source platform identifier.
+     */
+    platform: TPlatform;
+    /**
+     * Provider-specific unique identifier for the deleted message.
+     */
+    messageId: string;
+    /**
+     * Raw provider response, only present when requested and supported.
+     */
+    raw?: unknown;
+};
+type ModerationActionResult<TPlatform extends Platform = Platform> = {
+    /**
+     * Source platform identifier.
+     */
+    platform: TPlatform;
+    /**
+     * Provider-specific unique identifier for the moderated user.
+     */
+    userId: string | null;
+    /**
+     * Provider-specific unique identifier for the ban record when available.
+     */
+    banId: string | null;
+    /**
+     * Raw provider response, only present when requested and supported.
+     */
+    raw?: unknown;
+};
+/**
+ * Result returned after successfully banning a user.
+ */
+export type BanUserResult<TPlatform extends Platform = Platform> = ModerationActionResult<TPlatform> & {
+    /**
+     * ISO timestamp for when the ban expires, or `null` for permanent bans.
+     */
+    expiresAt: string | null;
+};
+/**
+ * Result returned after successfully timing out a user.
+ */
+export type TimeoutUserResult<TPlatform extends Platform = Platform> = ModerationActionResult<TPlatform> & {
+    /**
+     * Timeout duration in seconds.
+     */
+    durationSeconds: number;
+    /**
+     * ISO timestamp for when the timeout expires.
+     */
+    expiresAt: string | null;
+};
+/**
+ * Result returned after successfully removing a ban or timeout.
+ */
+export type UnbanUserResult<TPlatform extends Platform = Platform> = ModerationActionResult<TPlatform>;
+/**
+ * Normalized livestream status values across supported providers.
+ */
+export type LivestreamStatus = "live" | "upcoming" | "ended" | "unknown";
+/**
+ * Normalized active or scheduled livestream returned by a provider.
+ */
+export type Livestream<TPlatform extends Platform = Platform> = {
+    /** Source platform identifier. */
+    platform: TPlatform;
+    /** Provider-specific stream or broadcast id. */
+    streamId: string;
+    /** Human-readable stream title when available. */
+    title: string | null;
+    /** Provider-specific channel id when available. */
+    channelId: string | null;
+    /** Human-readable channel name when available. */
+    channelDisplayName: string | null;
+    /** Normalized livestream status. */
+    status: LivestreamStatus;
+    /** Current concurrent viewer count when live. */
+    concurrentViewers: number | null;
+    /** ISO timestamp for when the stream started or is scheduled to start. */
+    startedAt: string | null;
+    /** ISO timestamp for when the metric was normalized. */
+    fetchedAt: string;
+    /** Raw provider response, only present when `includeRaw` is true. */
+    raw?: unknown;
+};
+/**
+ * Request for active livestreams from a provider.
+ */
+export type ActiveLivestreamsRequest = {
+    /** Provider-specific channel id. */
+    channelId: string;
+    /** Include the provider raw response when supported. */
+    includeRaw?: boolean;
+};
+/**
+ * Request for scheduled livestreams from a provider.
+ */
+export type ScheduledLivestreamsRequest = {
+    /** Provider-specific channel id. */
+    channelId: string;
+    /** Include the provider raw response when supported. */
+    includeRaw?: boolean;
+};
+export {};

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { PlatformApiError, PlatformValidationError } from "../../src/errors.js"
 import { createKickChatClient } from "../../src/providers/kick/chat.js"
+import { createKickClient } from "../../src/kick.js"
 
 describe("createKickChatClient().sendMessage", () => {
     beforeEach(() => {
@@ -21,7 +22,7 @@ describe("createKickChatClient().sendMessage", () => {
             new Response(JSON.stringify(responsePayload), { status: 200 }),
         )
 
-        const chat = createKickChatClient({ accessToken: "kick-token" })
+        const chat = createKickChatClient({ userAccessToken: "kick-token" })
         const result = await chat.sendMessage({
             broadcasterUserId: 123,
             text: "Hello Kick chat",
@@ -62,7 +63,7 @@ describe("createKickChatClient().sendMessage", () => {
             new Response(JSON.stringify(responsePayload), { status: 200 }),
         )
 
-        const chat = createKickChatClient({ accessToken: "kick-token" })
+        const chat = createKickChatClient({ userAccessToken: "kick-token" })
         const result = await chat.sendMessage({
             type: "bot",
             text: "Hello from bot",
@@ -82,7 +83,7 @@ describe("createKickChatClient().sendMessage", () => {
 
     it("rejects user messages without a positive broadcaster id", async () => {
         const fetchMock = vi.mocked(fetch)
-        const chat = createKickChatClient({ accessToken: "kick-token" })
+        const chat = createKickChatClient({ userAccessToken: "kick-token" })
 
         await expect(
             chat.sendMessage({
@@ -98,7 +99,7 @@ describe("createKickChatClient().sendMessage", () => {
         fetchMock.mockResolvedValue(
             new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 }),
         )
-        const chat = createKickChatClient({ accessToken: "kick-token" })
+        const chat = createKickChatClient({ userAccessToken: "kick-token" })
 
         await expect(
             chat.sendMessage({
@@ -109,6 +110,109 @@ describe("createKickChatClient().sendMessage", () => {
             name: "PlatformApiError",
             platform: "kick",
             status: 403,
+        })
+    })
+
+    it("refreshes a stale Kick user token and retries the send once", async () => {
+        const fetchMock = vi.mocked(fetch)
+        const onUserTokenUpdate = vi.fn()
+        fetchMock.mockResolvedValueOnce(
+            new Response(JSON.stringify({ message: "Unauthorized" }), {
+                status: 401,
+            }),
+        )
+        fetchMock.mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    access_token: "fresh-kick-user-token",
+                    refresh_token: "fresh-kick-refresh-token",
+                    expires_in: 3600,
+                    scope: "chat:write",
+                    token_type: "Bearer",
+                }),
+                { status: 200 },
+            ),
+        )
+        fetchMock.mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    data: {
+                        id: "kick-message-2",
+                        created_at: "2026-05-22T11:00:00Z",
+                    },
+                }),
+                { status: 200 },
+            ),
+        )
+
+        const kick = createKickClient({
+            clientId: "kick-client-id",
+            clientSecret: "kick-client-secret",
+            userAccessToken: "stale-kick-user-token",
+            userRefreshToken: "stale-kick-refresh-token",
+            onUserTokenUpdate,
+        })
+        const result = await kick.chat.sendMessage({
+            broadcasterUserId: 123,
+            text: "Hello after refresh",
+        })
+
+        const firstApiCall = fetchMock.mock.calls[0]
+        expect(String(firstApiCall[0])).toBe("https://api.kick.com/public/v1/chat")
+        expect(firstApiCall[1]).toMatchObject({
+            method: "POST",
+            headers: {
+                Authorization: "Bearer stale-kick-user-token",
+                "Content-Type": "application/json",
+            },
+        })
+        expect(JSON.parse(String(firstApiCall[1]?.body))).toEqual({
+            broadcaster_user_id: 123,
+            content: "Hello after refresh",
+            type: "user",
+        })
+
+        const tokenRefreshCall = fetchMock.mock.calls[1]
+        expect(String(tokenRefreshCall[0])).toBe("https://id.kick.com/oauth/token")
+        expect(tokenRefreshCall[1]).toMatchObject({
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        })
+        const tokenRefreshBody = new URLSearchParams(
+            String(tokenRefreshCall[1]?.body),
+        )
+        expect(tokenRefreshBody.get("client_id")).toBe("kick-client-id")
+        expect(tokenRefreshBody.get("client_secret")).toBe("kick-client-secret")
+        expect(tokenRefreshBody.get("grant_type")).toBe("refresh_token")
+        expect(tokenRefreshBody.get("refresh_token")).toBe("stale-kick-refresh-token")
+
+        const secondApiCall = fetchMock.mock.calls[2]
+        expect(String(secondApiCall[0])).toBe("https://api.kick.com/public/v1/chat")
+        expect(secondApiCall[1]).toMatchObject({
+            method: "POST",
+            headers: {
+                Authorization: "Bearer fresh-kick-user-token",
+                "Content-Type": "application/json",
+            },
+        })
+        expect(JSON.parse(String(secondApiCall[1]?.body))).toEqual({
+            broadcaster_user_id: 123,
+            content: "Hello after refresh",
+            type: "user",
+        })
+        expect(onUserTokenUpdate).toHaveBeenCalledWith({
+            accessToken: "fresh-kick-user-token",
+            refreshToken: "fresh-kick-refresh-token",
+            expiresIn: 3600,
+            expiresAt: expect.any(String),
+            scope: "chat:write",
+            tokenType: "Bearer",
+        })
+        expect(result).toMatchObject({
+            platform: "kick",
+            messageId: "kick-message-2",
         })
     })
 })

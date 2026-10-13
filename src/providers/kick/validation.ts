@@ -4,11 +4,15 @@ import type {
     KickChannelResolveRequest,
     KickClientConfig,
     VideoMetricsRequest,
+    KickActiveLivestreamsRequest,
 } from "./types.js"
 
-type ValidatedKickClientConfig = KickClientConfig & {
-    accessToken: string
-}
+type ValidatedKickClientConfig = KickClientConfig & (
+    | { appAccessToken: string }
+    | { userAccessToken: string }
+    | { userRefreshToken: string }
+    | { accessToken: string }
+)
 
 export function validateKickConfig(
     config: unknown,
@@ -19,11 +23,108 @@ export function validateKickConfig(
         })
     }
 
-    if (!("accessToken" in config) || !config.accessToken) {
-        throw new PlatformValidationError("Kick accessToken is required.", {
-            platform: KICK_PLATFORM,
-        })
+    const configRecord = config as Record<string, unknown>
+    const appAccessToken = readNonEmptyString(configRecord, "appAccessToken")
+    const userAccessToken = readNonEmptyString(configRecord, "userAccessToken")
+    const userRefreshToken = readNonEmptyString(configRecord, "userRefreshToken")
+    const accessToken = readNonEmptyString(configRecord, "accessToken")
+    const clientId = readNonEmptyString(configRecord, "clientId")
+    const clientSecret = readNonEmptyString(configRecord, "clientSecret")
+
+    if (!appAccessToken && !userAccessToken && !userRefreshToken && !accessToken) {
+        throw new PlatformValidationError(
+            "Kick appAccessToken, userAccessToken, or userRefreshToken is required.",
+            {
+                platform: KICK_PLATFORM,
+            },
+        )
     }
+
+    if (userRefreshToken && (!clientId || !clientSecret)) {
+        throw new PlatformValidationError(
+            "Kick clientId and clientSecret are required when userRefreshToken is provided.",
+            {
+                platform: KICK_PLATFORM,
+            },
+        )
+    }
+}
+
+export function resolveKickClientTokens(config: KickClientConfig): {
+    appAccessToken?: string
+    userAccessToken?: string
+} {
+    const fallbackAccessToken = normalizeNonEmptyString(config.accessToken)
+
+    return {
+        appAccessToken:
+            normalizeNonEmptyString(config.appAccessToken) ?? fallbackAccessToken,
+        userAccessToken:
+            normalizeNonEmptyString(config.userAccessToken) ?? fallbackAccessToken,
+    }
+}
+
+function readNonEmptyString(
+    value: Record<string, unknown>,
+    key:
+        | "clientId"
+        | "clientSecret"
+        | "appAccessToken"
+        | "userAccessToken"
+        | "userRefreshToken"
+        | "accessToken",
+): string | undefined {
+    if (!(key in value)) {
+        return undefined
+    }
+
+    return normalizeNonEmptyString(value[key])
+}
+
+function normalizeNonEmptyString(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+        return undefined
+    }
+
+    const trimmedValue = value.trim()
+
+    if (trimmedValue.length === 0) {
+        return undefined
+    }
+
+    return trimmedValue
+}
+
+export function requireKickAppAccessToken(
+    appAccessToken: string | undefined,
+    feature: string,
+): string {
+    if (appAccessToken) {
+        return appAccessToken
+    }
+
+    throw new PlatformValidationError(
+        `Kick appAccessToken is required for ${feature}.`,
+        {
+            platform: KICK_PLATFORM,
+        },
+    )
+}
+
+export function requireKickUserAccessToken(
+    userAccessToken: string | undefined,
+    feature: string,
+): string {
+    if (userAccessToken) {
+        return userAccessToken
+    }
+
+    throw new PlatformValidationError(
+        `Kick userAccessToken is required for ${feature}.`,
+        {
+            platform: KICK_PLATFORM,
+        },
+    )
 }
 
 export function validateVideoMetricsRequest(
@@ -85,4 +186,20 @@ export function validateChannelResolveRequest(
 
 export function normalizeKickSlug(value: string): string {
     return value.trim().toLowerCase()
+}
+
+export function validateActiveLivestreamsRequest(
+    request: unknown,
+): asserts request is KickActiveLivestreamsRequest {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Active livestreams request is required.", {
+            platform: KICK_PLATFORM,
+        })
+    }
+
+    if (!("channelId" in request) || typeof request.channelId !== "string" || !request.channelId.trim()) {
+        throw new PlatformValidationError("channelId must be a non-empty string.", {
+            platform: KICK_PLATFORM,
+        })
+    }
 }

@@ -1,47 +1,77 @@
 import { ChatListenerEmitter } from "./chat-listener.js"
 import { PlatformValidationError } from "./errors.js"
 import type {
+    KickBanUserRequest,
     KickChannelResolveRequest,
     KickChannelResolveResult,
     KickChatStartResult,
     KickClient,
     KickChatListenRequest,
     KickChatListener,
+    KickDeleteMessageRequest,
     KickNodeWebhookRequest,
     KickSendMessageRequest,
     KickStopOptions,
+    KickTimeoutUserRequest,
+    KickUnbanUserRequest,
     KickWebhookRequest,
     KickWebhookResult,
     VideoMetricsRequest as KickVideoMetricsRequest,
+    KickActiveLivestreamsRequest,
 } from "./providers/kick/types.js"
 import type {
+    TwitchBanUserRequest,
     ChannelMetricsRequest as TwitchChannelMetricsRequest,
+    TwitchCreatePollRequest,
     TwitchChatListenRequest,
     TwitchChatListener,
     TwitchChatStartResult,
     TwitchChannelResolveRequest,
     TwitchChannelResolveResult,
     TwitchClient,
+    TwitchDeleteMessageRequest,
+    TwitchEndPollRequest,
+    TwitchSendMessageRequest,
     TwitchStopOptions,
+    TwitchTimeoutUserRequest,
+    TwitchUnbanUserRequest,
+    VideoMetricsRequest as TwitchVideoMetricsRequest,
+    TwitchActiveLivestreamsRequest,
+    TwitchScheduledLivestreamsRequest,
 } from "./providers/twitch/types.js"
 import type {
+    BanUserResult,
     ChannelMetrics,
     ChatListener,
     ChatMessage,
+    CreatePollResult,
+    DeleteMessageResult,
+    EndPollResult,
     Platform,
     SendMessageResult,
+    TimeoutUserResult,
+    UnbanUserResult,
     VideoMetrics,
+    Livestream,
 } from "./types.js"
 import type {
+    YoutubeBanUserRequest,
     ChannelMetricsRequest as YoutubeChannelMetricsRequest,
     YoutubeChannelResolveRequest,
     YoutubeChannelResolveResult,
     YoutubeChatListenRequest,
     YoutubeChatListener,
+    YoutubeCreatePollRequest,
+    YoutubeDeleteMessageRequest,
+    YoutubeEndPollRequest,
     YoutubeSendMessageRequest,
     YoutubeChatStartResult,
+    YoutubeTimeoutUserRequest,
+    YoutubeUnbanUserRequest,
     VideoMetricsRequest as YoutubeVideoMetricsRequest,
     YoutubeClient,
+    YoutubeActiveLivestreamsRequest,
+    YoutubeScheduledLivestreamsRequest,
 } from "./providers/youtube/types.js"
 
 /**
@@ -125,6 +155,15 @@ export type MultiPlatformChannelResolveResult =
     | TwitchChannelResolveResult
     | KickChannelResolveResult
 
+export type MultiPlatformYoutubeGetAuthenticatedUserRequest = { platform: Extract<Platform, "youtube"> }
+export type MultiPlatformTwitchGetAuthenticatedUserRequest = { platform: Extract<Platform, "twitch"> }
+export type MultiPlatformKickGetAuthenticatedUserRequest = { platform: Extract<Platform, "kick"> }
+
+export type MultiPlatformGetAuthenticatedUserRequest =
+    | MultiPlatformYoutubeGetAuthenticatedUserRequest
+    | MultiPlatformTwitchGetAuthenticatedUserRequest
+    | MultiPlatformKickGetAuthenticatedUserRequest
+
 /**
  * Request for normalized video metrics through the multi-platform router.
  */
@@ -143,12 +182,47 @@ export type MultiPlatformKickVideoMetricsRequest = KickVideoMetricsRequest & {
     platform: Extract<Platform, "kick">
 }
 
+export type MultiPlatformTwitchVideoMetricsRequest =
+    TwitchVideoMetricsRequest & {
+        /**
+     * Platform to route the request to.
+     */
+        platform: Extract<Platform, "twitch">
+    }
+
 export type MultiPlatformVideoMetricsRequest =
     | MultiPlatformYoutubeVideoMetricsRequest
+    | MultiPlatformTwitchVideoMetricsRequest
     | MultiPlatformKickVideoMetricsRequest
 
 export type MultiPlatformVideoMetricsBatchRequest =
     readonly MultiPlatformVideoMetricsRequest[]
+
+export type MultiPlatformYoutubeCreatePollRequest =
+    YoutubeCreatePollRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformTwitchCreatePollRequest =
+    TwitchCreatePollRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformCreatePollRequest =
+    | MultiPlatformYoutubeCreatePollRequest
+    | MultiPlatformTwitchCreatePollRequest
+
+export type MultiPlatformYoutubeEndPollRequest = YoutubeEndPollRequest & {
+    platform: Extract<Platform, "youtube">
+}
+
+export type MultiPlatformTwitchEndPollRequest = TwitchEndPollRequest & {
+    platform: Extract<Platform, "twitch">
+}
+
+export type MultiPlatformEndPollRequest =
+    | MultiPlatformYoutubeEndPollRequest
+    | MultiPlatformTwitchEndPollRequest
 
 export type MultiPlatformYoutubeChatListenRequest = YoutubeChatListenRequest & {
     platform: Extract<Platform, "youtube">
@@ -178,9 +252,88 @@ export type MultiPlatformKickSendMessageRequest = KickSendMessageRequest & {
     platform: Extract<Platform, "kick">
 }
 
+export type MultiPlatformTwitchSendMessageRequest = TwitchSendMessageRequest & {
+    platform: Extract<Platform, "twitch">
+}
+
 export type MultiPlatformSendMessageRequest =
     | MultiPlatformYoutubeSendMessageRequest
+    | MultiPlatformTwitchSendMessageRequest
     | MultiPlatformKickSendMessageRequest
+
+export type MultiPlatformYoutubeDeleteMessageRequest =
+    YoutubeDeleteMessageRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformKickDeleteMessageRequest =
+    KickDeleteMessageRequest & {
+        platform: Extract<Platform, "kick">
+    }
+
+export type MultiPlatformTwitchDeleteMessageRequest =
+    TwitchDeleteMessageRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformDeleteMessageRequest =
+    | MultiPlatformYoutubeDeleteMessageRequest
+    | MultiPlatformTwitchDeleteMessageRequest
+    | MultiPlatformKickDeleteMessageRequest
+
+export type MultiPlatformYoutubeBanUserRequest = YoutubeBanUserRequest & {
+    platform: Extract<Platform, "youtube">
+}
+
+export type MultiPlatformKickBanUserRequest = KickBanUserRequest & {
+    platform: Extract<Platform, "kick">
+}
+
+export type MultiPlatformTwitchBanUserRequest = TwitchBanUserRequest & {
+    platform: Extract<Platform, "twitch">
+}
+
+export type MultiPlatformBanUserRequest =
+    | MultiPlatformYoutubeBanUserRequest
+    | MultiPlatformTwitchBanUserRequest
+    | MultiPlatformKickBanUserRequest
+
+export type MultiPlatformYoutubeTimeoutUserRequest =
+    YoutubeTimeoutUserRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformKickTimeoutUserRequest =
+    KickTimeoutUserRequest & {
+        platform: Extract<Platform, "kick">
+    }
+
+export type MultiPlatformTwitchTimeoutUserRequest =
+    TwitchTimeoutUserRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformTimeoutUserRequest =
+    | MultiPlatformYoutubeTimeoutUserRequest
+    | MultiPlatformTwitchTimeoutUserRequest
+    | MultiPlatformKickTimeoutUserRequest
+
+export type MultiPlatformYoutubeUnbanUserRequest = YoutubeUnbanUserRequest & {
+    platform: Extract<Platform, "youtube">
+}
+
+export type MultiPlatformKickUnbanUserRequest = KickUnbanUserRequest & {
+    platform: Extract<Platform, "kick">
+}
+
+export type MultiPlatformTwitchUnbanUserRequest = TwitchUnbanUserRequest & {
+    platform: Extract<Platform, "twitch">
+}
+
+export type MultiPlatformUnbanUserRequest =
+    | MultiPlatformYoutubeUnbanUserRequest
+    | MultiPlatformTwitchUnbanUserRequest
+    | MultiPlatformKickUnbanUserRequest
 
 export type MultiPlatformYoutubeChatStartResult = YoutubeChatStartResult & {
     platform: Extract<Platform, "youtube">
@@ -199,6 +352,72 @@ export type MultiPlatformChatStartResult = readonly (
     | MultiPlatformTwitchChatStartResult
     | MultiPlatformKickChatStartResult
 )[]
+
+export type MultiPlatformYoutubeActiveLivestreamsRequest =
+    YoutubeActiveLivestreamsRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformTwitchActiveLivestreamsRequest =
+    TwitchActiveLivestreamsRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformKickActiveLivestreamsRequest =
+    KickActiveLivestreamsRequest & {
+        platform: Extract<Platform, "kick">
+    }
+
+export type MultiPlatformActiveLivestreamsRequest =
+    | MultiPlatformYoutubeActiveLivestreamsRequest
+    | MultiPlatformTwitchActiveLivestreamsRequest
+    | MultiPlatformKickActiveLivestreamsRequest
+
+export type MultiPlatformActiveLivestreamsBatchRequest =
+    readonly MultiPlatformActiveLivestreamsRequest[]
+
+export type MultiPlatformYoutubeScheduledLivestreamsRequest =
+    YoutubeScheduledLivestreamsRequest & {
+        platform: Extract<Platform, "youtube">
+    }
+
+export type MultiPlatformTwitchScheduledLivestreamsRequest =
+    TwitchScheduledLivestreamsRequest & {
+        platform: Extract<Platform, "twitch">
+    }
+
+export type MultiPlatformScheduledLivestreamsRequest =
+    | MultiPlatformYoutubeScheduledLivestreamsRequest
+    | MultiPlatformTwitchScheduledLivestreamsRequest
+
+export type MultiPlatformScheduledLivestreamsBatchRequest =
+    readonly MultiPlatformScheduledLivestreamsRequest[]
+
+export type MultiPlatformLivestreamsClient = {
+    getActive(
+        request: MultiPlatformActiveLivestreamsRequest,
+    ): Promise<Livestream[]>
+    getActive(
+        request: MultiPlatformActiveLivestreamsBatchRequest,
+    ): Promise<Livestream[][]>
+    getActive(
+        request:
+            | MultiPlatformActiveLivestreamsRequest
+            | MultiPlatformActiveLivestreamsBatchRequest,
+    ): Promise<Livestream[] | Livestream[][]>
+
+    getScheduled(
+        request: MultiPlatformScheduledLivestreamsRequest,
+    ): Promise<Livestream[]>
+    getScheduled(
+        request: MultiPlatformScheduledLivestreamsBatchRequest,
+    ): Promise<Livestream[][]>
+    getScheduled(
+        request:
+            | MultiPlatformScheduledLivestreamsRequest
+            | MultiPlatformScheduledLivestreamsBatchRequest,
+    ): Promise<Livestream[] | Livestream[][]>
+}
 
 export type MultiPlatformChatStopOptions = {
     twitch?: TwitchStopOptions
@@ -241,6 +460,13 @@ export type MultiPlatformChannelsClient = {
     getMetrics(
         request: MultiPlatformChannelMetricsBatchRequest,
     ): Promise<ChannelMetrics[]>
+
+    /**
+     * Retrieve the authenticated user's identity from the selected provider.
+     */
+    getAuthenticatedUser(
+        request: MultiPlatformGetAuthenticatedUserRequest,
+    ): Promise<MultiPlatformChannelResolveResult>
 }
 
 /**
@@ -254,6 +480,21 @@ export type MultiPlatformVideosClient = {
     getMetrics(request: MultiPlatformVideoMetricsBatchRequest): Promise<VideoMetrics[]>
 }
 
+/**
+ * Poll methods exposed by the multi-platform client.
+ */
+export type MultiPlatformPollsClient = {
+    /**
+     * Route a normalized poll creation request to the selected provider.
+     */
+    create(request: MultiPlatformCreatePollRequest): Promise<CreatePollResult>
+
+    /**
+     * Route a normalized poll end request to the selected provider.
+     */
+    end(request: MultiPlatformEndPollRequest): Promise<EndPollResult>
+}
+
 export type MultiPlatformChatsClient = {
     listen(
         request:
@@ -265,6 +506,18 @@ export type MultiPlatformChatsClient = {
      * Route a standardized text message to the selected provider.
      */
     sendMessage(request: MultiPlatformSendMessageRequest): Promise<SendMessageResult>
+
+    deleteMessage(
+        request: MultiPlatformDeleteMessageRequest,
+    ): Promise<DeleteMessageResult>
+
+    banUser(request: MultiPlatformBanUserRequest): Promise<BanUserResult>
+
+    timeoutUser(
+        request: MultiPlatformTimeoutUserRequest,
+    ): Promise<TimeoutUserResult>
+
+    unbanUser(request: MultiPlatformUnbanUserRequest): Promise<UnbanUserResult>
 }
 
 /**
@@ -282,9 +535,19 @@ export type MultiPlatformClient = {
     videos: MultiPlatformVideosClient
 
     /**
+     * Poll-related methods.
+     */
+    polls: MultiPlatformPollsClient
+
+    /**
    * Chat-related methods.
    */
     chats: MultiPlatformChatsClient
+
+    /**
+     * Livestream-related methods.
+     */
+    livestreams: MultiPlatformLivestreamsClient
 }
 
 /**
@@ -309,7 +572,9 @@ export function createMultiPlatformClient(
     return {
         channels: createMultiPlatformChannelsClient(providers),
         videos: createMultiPlatformVideosClient(providers),
+        polls: createMultiPlatformPollsClient(providers),
         chats: createMultiPlatformChatsClient(providers),
+        livestreams: createMultiPlatformLivestreamsClient(providers),
     }
 }
 
@@ -342,7 +607,13 @@ function createMultiPlatformChannelsClient(
         return dispatchChannelMetrics(request, providers)
     }
 
-    return { resolve, getMetrics }
+    async function getAuthenticatedUser(
+        request: MultiPlatformGetAuthenticatedUserRequest,
+    ): Promise<MultiPlatformChannelResolveResult> {
+        return dispatchGetAuthenticatedUser(request, providers)
+    }
+
+    return { resolve, getMetrics, getAuthenticatedUser }
 }
 
 function createMultiPlatformVideosClient(
@@ -371,6 +642,24 @@ function createMultiPlatformVideosClient(
     return { getMetrics }
 }
 
+function createMultiPlatformPollsClient(
+    providers: MultiPlatformClientConfig,
+): MultiPlatformPollsClient {
+    async function create(
+        request: MultiPlatformCreatePollRequest,
+    ): Promise<CreatePollResult> {
+        return dispatchCreatePoll(request, providers)
+    }
+
+    async function end(
+        request: MultiPlatformEndPollRequest,
+    ): Promise<EndPollResult> {
+        return dispatchEndPoll(request, providers)
+    }
+
+    return { create, end }
+}
+
 function createMultiPlatformChatsClient(
     providers: MultiPlatformClientConfig,
 ): MultiPlatformChatsClient {
@@ -392,7 +681,31 @@ function createMultiPlatformChatsClient(
         return dispatchSendMessage(request, providers)
     }
 
-    return { listen, sendMessage }
+    async function deleteMessage(
+        request: MultiPlatformDeleteMessageRequest,
+    ): Promise<DeleteMessageResult> {
+        return dispatchDeleteMessage(request, providers)
+    }
+
+    async function banUser(
+        request: MultiPlatformBanUserRequest,
+    ): Promise<BanUserResult> {
+        return dispatchBanUser(request, providers)
+    }
+
+    async function timeoutUser(
+        request: MultiPlatformTimeoutUserRequest,
+    ): Promise<TimeoutUserResult> {
+        return dispatchTimeoutUser(request, providers)
+    }
+
+    async function unbanUser(
+        request: MultiPlatformUnbanUserRequest,
+    ): Promise<UnbanUserResult> {
+        return dispatchUnbanUser(request, providers)
+    }
+
+    return { listen, sendMessage, deleteMessage, banUser, timeoutUser, unbanUser }
 }
 
 function isChannelMetricsBatchRequest(
@@ -495,6 +808,61 @@ function dispatchChannelResolve(
     )
 }
 
+function dispatchGetAuthenticatedUser(
+    request: MultiPlatformGetAuthenticatedUserRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<MultiPlatformChannelResolveResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Get authenticated user request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.channels.getAuthenticatedUser()
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.channels.getAuthenticatedUser()
+    }
+
+    if (request.platform === "kick") {
+        const provider = providers.kick
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.channels.getAuthenticatedUser()
+    }
+
+    throw new PlatformValidationError(
+        `Get authenticated user is not supported for platform "${String(
+            (request as { platform?: unknown }).platform,
+        )}".`,
+        { platform: String((request as { platform?: unknown }).platform) },
+    )
+}
+
 function dispatchChannelMetrics(
     request: MultiPlatformChannelMetricsRequest,
     providers: MultiPlatformClientConfig,
@@ -563,17 +931,11 @@ function createChatSubscription(
             )
         }
 
+        const { platform, ...youtubeRequest } = request
+
         return {
-            platform: "youtube",
-            listener: provider.chat.listen({
-                liveVideoId: request.liveVideoId,
-                liveChatId: request.liveChatId,
-                pollingIntervalMs: request.pollingIntervalMs,
-                maxResults: request.maxResults,
-                includeHistory: request.includeHistory,
-                maxRecentMessageIds: request.maxRecentMessageIds,
-                includeRaw: request.includeRaw,
-            }),
+            platform,
+            listener: provider.chat.listen(youtubeRequest),
         }
     }
 
@@ -645,6 +1007,23 @@ function dispatchVideoMetrics(
         })
     }
 
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.videos.getMetrics({
+            videoId: request.videoId,
+            metrics: request.metrics,
+            includeRaw: request.includeRaw,
+        })
+    }
+
     const provider = providers.kick
 
     if (!provider) {
@@ -659,6 +1038,110 @@ function dispatchVideoMetrics(
         metrics: request.metrics,
         includeRaw: request.includeRaw,
     })
+}
+
+function dispatchCreatePoll(
+    request: MultiPlatformCreatePollRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<CreatePollResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Create poll request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.polls.create({
+            liveChatId: request.liveChatId,
+            question: request.question,
+            choices: request.choices,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.polls.create({
+            broadcasterId: request.broadcasterId,
+            question: request.question,
+            choices: request.choices,
+            durationSeconds: request.durationSeconds,
+            channelPointsPerVote: request.channelPointsPerVote,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    throw new PlatformValidationError(
+        `Poll creation is not supported for platform "${String(
+            (request as { platform?: unknown }).platform,
+        )}".`,
+        { platform: String((request as { platform?: unknown }).platform) },
+    )
+}
+
+function dispatchEndPoll(
+    request: MultiPlatformEndPollRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<EndPollResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("End poll request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.polls.end({
+            pollId: request.pollId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.polls.end({
+            broadcasterId: request.broadcasterId,
+            pollId: request.pollId,
+            archive: request.archive,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    throw new PlatformValidationError(
+        `Poll ending is not supported for platform "${String(
+            (request as { platform?: unknown }).platform,
+        )}".`,
+        { platform: String((request as { platform?: unknown }).platform) },
+    )
 }
 
 function dispatchSendMessage(
@@ -712,12 +1195,266 @@ function dispatchSendMessage(
         })
     }
 
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.sendMessage({
+            broadcasterId: request.broadcasterId,
+            text: request.text,
+            replyParentMessageId: request.replyParentMessageId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
     throw new PlatformValidationError(
         `Chat messages are not supported for platform "${String(
             (request as { platform?: unknown }).platform,
         )}".`,
         { platform: String((request as { platform?: unknown }).platform) },
     )
+}
+
+function dispatchDeleteMessage(
+    request: MultiPlatformDeleteMessageRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<DeleteMessageResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Delete message request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.deleteMessage({
+            messageId: request.messageId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.deleteMessage({
+            broadcasterId: request.broadcasterId,
+            messageId: request.messageId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    const provider = providers.kick
+
+    if (!provider) {
+        throw new PlatformValidationError(
+            `No provider client was configured for platform "${request.platform}".`,
+            { platform: request.platform },
+        )
+    }
+
+    return provider.chat.deleteMessage({
+        messageId: request.messageId,
+        includeRaw: request.includeRaw,
+    })
+}
+
+function dispatchBanUser(
+    request: MultiPlatformBanUserRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<BanUserResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Ban user request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.banUser({
+            liveChatId: request.liveChatId,
+            userId: request.userId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.banUser({
+            broadcasterId: request.broadcasterId,
+            userId: request.userId,
+            reason: request.reason,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    const provider = providers.kick
+
+    if (!provider) {
+        throw new PlatformValidationError(
+            `No provider client was configured for platform "${request.platform}".`,
+            { platform: request.platform },
+        )
+    }
+
+    return provider.chat.banUser({
+        broadcasterUserId: request.broadcasterUserId,
+        userId: request.userId,
+        reason: request.reason,
+        includeRaw: request.includeRaw,
+    })
+}
+
+function dispatchTimeoutUser(
+    request: MultiPlatformTimeoutUserRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<TimeoutUserResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Timeout user request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.timeoutUser({
+            liveChatId: request.liveChatId,
+            userId: request.userId,
+            durationSeconds: request.durationSeconds,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.timeoutUser({
+            broadcasterId: request.broadcasterId,
+            userId: request.userId,
+            durationSeconds: request.durationSeconds,
+            reason: request.reason,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    const provider = providers.kick
+
+    if (!provider) {
+        throw new PlatformValidationError(
+            `No provider client was configured for platform "${request.platform}".`,
+            { platform: request.platform },
+        )
+    }
+
+    return provider.chat.timeoutUser({
+        broadcasterUserId: request.broadcasterUserId,
+        userId: request.userId,
+        durationSeconds: request.durationSeconds,
+        reason: request.reason,
+        includeRaw: request.includeRaw,
+    })
+}
+
+function dispatchUnbanUser(
+    request: MultiPlatformUnbanUserRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<UnbanUserResult> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Unban user request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.unbanUser({
+            banId: request.banId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.chat.unbanUser({
+            broadcasterId: request.broadcasterId,
+            userId: request.userId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    const provider = providers.kick
+
+    if (!provider) {
+        throw new PlatformValidationError(
+            `No provider client was configured for platform "${request.platform}".`,
+            { platform: request.platform },
+        )
+    }
+
+    return provider.chat.unbanUser({
+        broadcasterUserId: request.broadcasterUserId,
+        userId: request.userId,
+        includeRaw: request.includeRaw,
+    })
 }
 
 class MultiPlatformChatListenerImpl
@@ -918,4 +1655,171 @@ async function readRawBody(request: AsyncIterable<Uint8Array | string>) {
     }
 
     return rawBody + decoder.decode()
+}
+
+function createMultiPlatformLivestreamsClient(
+    providers: MultiPlatformClientConfig,
+): MultiPlatformLivestreamsClient {
+    function getActive(
+        request: MultiPlatformActiveLivestreamsRequest,
+    ): Promise<Livestream[]>
+    function getActive(
+        request: MultiPlatformActiveLivestreamsBatchRequest,
+    ): Promise<Livestream[][]>
+    function getActive(
+        request:
+            | MultiPlatformActiveLivestreamsRequest
+            | MultiPlatformActiveLivestreamsBatchRequest,
+    ): Promise<Livestream[] | Livestream[][]> {
+        if (isLiveActiveLivestreamsBatchRequest(request)) {
+            return Promise.all(
+                request.map((item) => dispatchActiveLivestreams(item, providers)),
+            )
+        }
+
+        return dispatchActiveLivestreams(request, providers)
+    }
+
+    function getScheduled(
+        request: MultiPlatformScheduledLivestreamsRequest,
+    ): Promise<Livestream[]>
+    function getScheduled(
+        request: MultiPlatformScheduledLivestreamsBatchRequest,
+    ): Promise<Livestream[][]>
+    function getScheduled(
+        request:
+            | MultiPlatformScheduledLivestreamsRequest
+            | MultiPlatformScheduledLivestreamsBatchRequest,
+    ): Promise<Livestream[] | Livestream[][]> {
+        if (isScheduledLivestreamsBatchRequest(request)) {
+            return Promise.all(
+                request.map((item) => dispatchScheduledLivestreams(item, providers)),
+            )
+        }
+
+        return dispatchScheduledLivestreams(request, providers)
+    }
+
+    return { getActive, getScheduled }
+}
+
+function isLiveActiveLivestreamsBatchRequest(
+    value: unknown,
+): value is MultiPlatformActiveLivestreamsBatchRequest {
+    return Array.isArray(value)
+}
+
+function isScheduledLivestreamsBatchRequest(
+    value: unknown,
+): value is MultiPlatformScheduledLivestreamsBatchRequest {
+    return Array.isArray(value)
+}
+
+function dispatchActiveLivestreams(
+    request: MultiPlatformActiveLivestreamsRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<Livestream[]> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Active livestreams request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "kick") {
+        const provider = providers.kick
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    throw new PlatformValidationError(`Unsupported platform "${(request as { platform: string }).platform}".`)
+}
+
+function dispatchScheduledLivestreams(
+    request: MultiPlatformScheduledLivestreamsRequest,
+    providers: MultiPlatformClientConfig,
+): Promise<Livestream[]> {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Scheduled livestreams request is required.")
+    }
+
+    if (request.platform === "youtube") {
+        const provider = providers.youtube
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getScheduled({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    if (request.platform === "twitch") {
+        const provider = providers.twitch
+
+        if (!provider) {
+            throw new PlatformValidationError(
+                `No provider client was configured for platform "${request.platform}".`,
+                { platform: request.platform },
+            )
+        }
+
+        return provider.livestreams.getScheduled({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        })
+    }
+
+    // Kick does not support scheduled streams.
+    if ((request as { platform: string }).platform === "kick") {
+        throw new PlatformValidationError("Kick does not support scheduled livestreams.", {
+            platform: "kick",
+        })
+    }
+
+    throw new PlatformValidationError(`Unsupported platform "${(request as { platform: string }).platform}".`)
 }

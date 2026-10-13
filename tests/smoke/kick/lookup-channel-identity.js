@@ -9,7 +9,7 @@ import {
 async function main() {
     const accessToken = await getKickAppAccessToken()
     const kick = createKickClient({
-        accessToken,
+        appAccessToken: accessToken,
     })
     const slug = optionalEnv(
         "KICK_CHANNEL_SLUG",

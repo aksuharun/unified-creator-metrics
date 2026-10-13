@@ -1,7 +1,9 @@
+import { type TwitchUserAccessTokenProvider } from "./auth.js";
 import type { TwitchChatClient } from "./types.js";
 type TwitchChatClientOptions = {
     clientId: string;
-    accessToken: string;
+    userAccessToken?: string;
+    userAccessTokenProvider?: TwitchUserAccessTokenProvider;
 };
 /**
  * Create the Twitch chat capability object exposed as `twitch.chat`.

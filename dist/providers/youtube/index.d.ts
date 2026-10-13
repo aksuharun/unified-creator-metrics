@@ -8,4 +8,4 @@ export type { GoogleYoutubeClient };
  * even though YouTube calls the value `subscriberCount`.
  */
 export declare function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient;
-export { createGoogleYoutubeClient } from "./google-client.js";
+export { createGoogleYoutubeAuthClient, createGoogleYoutubeClient, } from "./google-client.js";

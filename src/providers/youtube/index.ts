@@ -6,7 +6,9 @@ import {
     type GoogleYoutubeClient,
 } from "./google-client.js"
 import { validateYoutubeConfig } from "./validation.js"
+import { createYoutubePollsClient } from "./polls.js"
 import { createYoutubeVideosClient } from "./videos.js"
+import { createYoutubeLivestreamsClient } from "./livestreams.js"
 import type { YoutubeClient, YoutubeClientConfig } from "./types.js"
 
 export type { GoogleYoutubeClient }
@@ -20,10 +22,18 @@ export type { GoogleYoutubeClient }
 export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient {
     validateYoutubeConfig(config)
 
+    const hasAuthenticatedAccess = Boolean(
+        config.oauth2Client || config.accessToken || config.refreshToken,
+    )
+
     const youtubeApiClient = createGoogleYoutubeClient({
         apiKey: config.apiKey,
         oauth2Client: config.oauth2Client,
         accessToken: config.accessToken,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+        refreshToken: config.refreshToken,
+        onTokenUpdate: config.onTokenUpdate,
     })
 
     return {
@@ -34,10 +44,20 @@ export function createYoutubeClient(config: YoutubeClientConfig): YoutubeClient 
         videos: createYoutubeVideosClient({
             youtubeApiClient,
         }),
+        polls: createYoutubePollsClient({
+            youtubeApiClient,
+        }),
         chat: createYoutubeChatClient({
             youtubeApiClient,
+        }),
+        livestreams: createYoutubeLivestreamsClient({
+            youtubeApiClient,
+            hasAuthenticatedAccess,
         }),
     }
 }
 
-export { createGoogleYoutubeClient } from "./google-client.js"
+export {
+    createGoogleYoutubeAuthClient,
+    createGoogleYoutubeClient,
+} from "./google-client.js"

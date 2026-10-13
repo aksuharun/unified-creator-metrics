@@ -110,7 +110,7 @@ describe("createTwitchChatClient().listen", () => {
 
         const chat = createTwitchChatClient({
             clientId: "client-1",
-            accessToken: "token-1",
+            userAccessToken: "token-1",
         })
         const listener = chat.listen({
             broadcasterId: "broadcaster-1",
@@ -318,7 +318,7 @@ describe("createTwitchChatClient().listen", () => {
 
         const chat = createTwitchChatClient({
             clientId: "client-1",
-            accessToken: "token-1",
+            userAccessToken: "token-1",
         })
 
         await expect(
@@ -370,7 +370,7 @@ describe("createTwitchChatClient().listen", () => {
 
         const chat = createTwitchChatClient({
             clientId: "client-1",
-            accessToken: "token-1",
+            userAccessToken: "token-1",
         })
         const listener = chat.listen({
             broadcasterId: "broadcaster-1",
@@ -454,7 +454,7 @@ describe("createTwitchChatClient().listen", () => {
 
         const chat = createTwitchChatClient({
             clientId: "client-1",
-            accessToken: "token-1",
+            userAccessToken: "token-1",
         })
         const listener = chat.listen({
             broadcasterId: "broadcaster-1",

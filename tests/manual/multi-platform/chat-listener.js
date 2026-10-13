@@ -27,7 +27,7 @@ if (!["ensure", "create", "manual"].includes(subscriptionMode)) {
 }
 
 const kick = createKickClient({
-    accessToken: await getKickAppAccessToken(),
+    appAccessToken: await getKickAppAccessToken(),
 })
 
 const youtube = createYoutubeClient({

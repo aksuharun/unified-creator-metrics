@@ -1,7 +1,11 @@
 import {
+    createKickClient,
     PlatformApiError,
     PlatformValidationError,
+    createTwitchClient,
+    createYoutubeClient,
     createGoogleYoutubeClient,
+    refreshTwitchAccessToken,
 } from "unified-creator-metrics"
 
 /* global fetch, URLSearchParams */
@@ -39,8 +43,48 @@ export function getSmokeMessage(envName) {
     )
 }
 
+export function getYoutubeClientConfigFromEnv() {
+    return {
+        apiKey: process.env.YOUTUBE_API_KEY,
+        clientId: requiredEnv("YOUTUBE_CLIENT_ID"),
+        clientSecret: requiredEnv("YOUTUBE_CLIENT_SECRET"),
+        refreshToken: requiredEnv("YOUTUBE_REFRESH_TOKEN"),
+    }
+}
+
+export function hasYoutubeRefreshTokenConfig() {
+    return Boolean(
+        process.env.YOUTUBE_CLIENT_ID &&
+            process.env.YOUTUBE_CLIENT_SECRET &&
+            process.env.YOUTUBE_REFRESH_TOKEN,
+    )
+}
+
+export function createYoutubeClientFromEnv() {
+    return createYoutubeClient(getYoutubeClientConfigFromEnv())
+}
+
 export function getKickUserAccessToken() {
     return requiredEnv("KICK_USER_ACCESS_TOKEN")
+}
+
+export async function resolveKickBroadcasterUserId() {
+    if (process.env.KICK_BROADCASTER_USER_ID) {
+        return positiveIntegerEnv("KICK_BROADCASTER_USER_ID")
+    }
+
+    const kick = createKickClient({
+        appAccessToken: await getKickAppAccessToken(),
+    })
+    const slug = optionalEnv(
+        "KICK_CHANNEL_SLUG",
+        optionalEnv("KICK_BROADCASTER_USERNAME", "aksuharun"),
+    )
+    const identity = await kick.channels.resolve({
+        slug,
+    })
+
+    return identity.broadcasterUserId
 }
 
 export async function getKickAppAccessToken() {
@@ -73,6 +117,37 @@ export async function getKickAppAccessToken() {
     }
 
     return payload.access_token
+}
+
+export async function getTwitchUserAccessToken() {
+    if (process.env.TWITCH_USER_ACCESS_TOKEN) {
+        return process.env.TWITCH_USER_ACCESS_TOKEN
+    }
+
+    const refreshedTokens = await refreshTwitchAccessToken({
+        clientId: requiredEnv("TWITCH_CLIENT_ID"),
+        clientSecret: requiredEnv("TWITCH_CLIENT_SECRET"),
+        refreshToken: requiredEnv("TWITCH_REFRESH_TOKEN"),
+    })
+
+    return refreshedTokens.accessToken
+}
+
+export async function resolveTwitchBroadcasterId() {
+    if (process.env.TWITCH_BROADCASTER_ID) {
+        return requiredEnv("TWITCH_BROADCASTER_ID")
+    }
+
+    const twitch = createTwitchClient({
+        clientId: requiredEnv("TWITCH_CLIENT_ID"),
+        clientSecret: requiredEnv("TWITCH_CLIENT_SECRET"),
+        userRefreshToken: requiredEnv("TWITCH_REFRESH_TOKEN"),
+    })
+    const identity = await twitch.channels.resolve({
+        login: optionalEnv("TWITCH_BROADCASTER_LOGIN", "aksuharun"),
+    })
+
+    return identity.broadcasterId
 }
 
 export async function resolveYoutubeLiveChatId(options) {

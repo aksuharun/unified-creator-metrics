@@ -18,7 +18,9 @@ export function createMultiPlatformClient(config) {
     return {
         channels: createMultiPlatformChannelsClient(providers),
         videos: createMultiPlatformVideosClient(providers),
+        polls: createMultiPlatformPollsClient(providers),
         chats: createMultiPlatformChatsClient(providers),
+        livestreams: createMultiPlatformLivestreamsClient(providers),
     };
 }
 function createMultiPlatformChannelsClient(providers) {
@@ -31,7 +33,10 @@ function createMultiPlatformChannelsClient(providers) {
         }
         return dispatchChannelMetrics(request, providers);
     }
-    return { resolve, getMetrics };
+    async function getAuthenticatedUser(request) {
+        return dispatchGetAuthenticatedUser(request, providers);
+    }
+    return { resolve, getMetrics, getAuthenticatedUser };
 }
 function createMultiPlatformVideosClient(providers) {
     function getMetrics(request) {
@@ -42,6 +47,15 @@ function createMultiPlatformVideosClient(providers) {
     }
     return { getMetrics };
 }
+function createMultiPlatformPollsClient(providers) {
+    async function create(request) {
+        return dispatchCreatePoll(request, providers);
+    }
+    async function end(request) {
+        return dispatchEndPoll(request, providers);
+    }
+    return { create, end };
+}
 function createMultiPlatformChatsClient(providers) {
     function listen(request) {
         const requests = Array.isArray(request) ? request : [request];
@@ -50,7 +64,19 @@ function createMultiPlatformChatsClient(providers) {
     async function sendMessage(request) {
         return dispatchSendMessage(request, providers);
     }
-    return { listen, sendMessage };
+    async function deleteMessage(request) {
+        return dispatchDeleteMessage(request, providers);
+    }
+    async function banUser(request) {
+        return dispatchBanUser(request, providers);
+    }
+    async function timeoutUser(request) {
+        return dispatchTimeoutUser(request, providers);
+    }
+    async function unbanUser(request) {
+        return dispatchUnbanUser(request, providers);
+    }
+    return { listen, sendMessage, deleteMessage, banUser, timeoutUser, unbanUser };
 }
 function isChannelMetricsBatchRequest(request) {
     return Array.isArray(request);
@@ -94,6 +120,33 @@ function dispatchChannelResolve(request, providers) {
     }
     throw new PlatformValidationError(`Channel resolve is not supported for platform "${String(request.platform)}".`, { platform: String(request.platform) });
 }
+function dispatchGetAuthenticatedUser(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Get authenticated user request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.channels.getAuthenticatedUser();
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.channels.getAuthenticatedUser();
+    }
+    if (request.platform === "kick") {
+        const provider = providers.kick;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.channels.getAuthenticatedUser();
+    }
+    throw new PlatformValidationError(`Get authenticated user is not supported for platform "${String(request.platform)}".`, { platform: String(request.platform) });
+}
 function dispatchChannelMetrics(request, providers) {
     if (!request || typeof request !== "object") {
         throw new PlatformValidationError("Channel metrics request is required.");
@@ -131,17 +184,10 @@ function createChatSubscription(request, providers) {
         if (!provider) {
             throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
         }
+        const { platform, ...youtubeRequest } = request;
         return {
-            platform: "youtube",
-            listener: provider.chat.listen({
-                liveVideoId: request.liveVideoId,
-                liveChatId: request.liveChatId,
-                pollingIntervalMs: request.pollingIntervalMs,
-                maxResults: request.maxResults,
-                includeHistory: request.includeHistory,
-                maxRecentMessageIds: request.maxRecentMessageIds,
-                includeRaw: request.includeRaw,
-            }),
+            platform,
+            listener: provider.chat.listen(youtubeRequest),
         };
     }
     if (request.platform === "twitch") {
@@ -190,6 +236,17 @@ function dispatchVideoMetrics(request, providers) {
             includeRaw: request.includeRaw,
         });
     }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.videos.getMetrics({
+            videoId: request.videoId,
+            metrics: request.metrics,
+            includeRaw: request.includeRaw,
+        });
+    }
     const provider = providers.kick;
     if (!provider) {
         throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
@@ -199,6 +256,66 @@ function dispatchVideoMetrics(request, providers) {
         metrics: request.metrics,
         includeRaw: request.includeRaw,
     });
+}
+function dispatchCreatePoll(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Create poll request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.polls.create({
+            liveChatId: request.liveChatId,
+            question: request.question,
+            choices: request.choices,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.polls.create({
+            broadcasterId: request.broadcasterId,
+            question: request.question,
+            choices: request.choices,
+            durationSeconds: request.durationSeconds,
+            channelPointsPerVote: request.channelPointsPerVote,
+            includeRaw: request.includeRaw,
+        });
+    }
+    throw new PlatformValidationError(`Poll creation is not supported for platform "${String(request.platform)}".`, { platform: String(request.platform) });
+}
+function dispatchEndPoll(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("End poll request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.polls.end({
+            pollId: request.pollId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.polls.end({
+            broadcasterId: request.broadcasterId,
+            pollId: request.pollId,
+            archive: request.archive,
+            includeRaw: request.includeRaw,
+        });
+    }
+    throw new PlatformValidationError(`Poll ending is not supported for platform "${String(request.platform)}".`, { platform: String(request.platform) });
 }
 function dispatchSendMessage(request, providers) {
     if (!request || typeof request !== "object") {
@@ -234,7 +351,167 @@ function dispatchSendMessage(request, providers) {
             includeRaw: request.includeRaw,
         });
     }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.chat.sendMessage({
+            broadcasterId: request.broadcasterId,
+            text: request.text,
+            replyParentMessageId: request.replyParentMessageId,
+            includeRaw: request.includeRaw,
+        });
+    }
     throw new PlatformValidationError(`Chat messages are not supported for platform "${String(request.platform)}".`, { platform: String(request.platform) });
+}
+function dispatchDeleteMessage(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Delete message request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.chat.deleteMessage({
+            messageId: request.messageId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.chat.deleteMessage({
+            broadcasterId: request.broadcasterId,
+            messageId: request.messageId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    const provider = providers.kick;
+    if (!provider) {
+        throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+    }
+    return provider.chat.deleteMessage({
+        messageId: request.messageId,
+        includeRaw: request.includeRaw,
+    });
+}
+function dispatchBanUser(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Ban user request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.chat.banUser({
+            liveChatId: request.liveChatId,
+            userId: request.userId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.chat.banUser({
+            broadcasterId: request.broadcasterId,
+            userId: request.userId,
+            reason: request.reason,
+            includeRaw: request.includeRaw,
+        });
+    }
+    const provider = providers.kick;
+    if (!provider) {
+        throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+    }
+    return provider.chat.banUser({
+        broadcasterUserId: request.broadcasterUserId,
+        userId: request.userId,
+        reason: request.reason,
+        includeRaw: request.includeRaw,
+    });
+}
+function dispatchTimeoutUser(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Timeout user request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.chat.timeoutUser({
+            liveChatId: request.liveChatId,
+            userId: request.userId,
+            durationSeconds: request.durationSeconds,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.chat.timeoutUser({
+            broadcasterId: request.broadcasterId,
+            userId: request.userId,
+            durationSeconds: request.durationSeconds,
+            reason: request.reason,
+            includeRaw: request.includeRaw,
+        });
+    }
+    const provider = providers.kick;
+    if (!provider) {
+        throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+    }
+    return provider.chat.timeoutUser({
+        broadcasterUserId: request.broadcasterUserId,
+        userId: request.userId,
+        durationSeconds: request.durationSeconds,
+        reason: request.reason,
+        includeRaw: request.includeRaw,
+    });
+}
+function dispatchUnbanUser(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Unban user request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.chat.unbanUser({
+            banId: request.banId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.chat.unbanUser({
+            broadcasterId: request.broadcasterId,
+            userId: request.userId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    const provider = providers.kick;
+    if (!provider) {
+        throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+    }
+    return provider.chat.unbanUser({
+        broadcasterUserId: request.broadcasterUserId,
+        userId: request.userId,
+        includeRaw: request.includeRaw,
+    });
 }
 class MultiPlatformChatListenerImpl extends ChatListenerEmitter {
     subscriptions;
@@ -370,4 +647,93 @@ async function readRawBody(request) {
                 : decoder.decode(chunk, { stream: true });
     }
     return rawBody + decoder.decode();
+}
+function createMultiPlatformLivestreamsClient(providers) {
+    function getActive(request) {
+        if (isLiveActiveLivestreamsBatchRequest(request)) {
+            return Promise.all(request.map((item) => dispatchActiveLivestreams(item, providers)));
+        }
+        return dispatchActiveLivestreams(request, providers);
+    }
+    function getScheduled(request) {
+        if (isScheduledLivestreamsBatchRequest(request)) {
+            return Promise.all(request.map((item) => dispatchScheduledLivestreams(item, providers)));
+        }
+        return dispatchScheduledLivestreams(request, providers);
+    }
+    return { getActive, getScheduled };
+}
+function isLiveActiveLivestreamsBatchRequest(value) {
+    return Array.isArray(value);
+}
+function isScheduledLivestreamsBatchRequest(value) {
+    return Array.isArray(value);
+}
+function dispatchActiveLivestreams(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Active livestreams request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "kick") {
+        const provider = providers.kick;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getActive({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    throw new PlatformValidationError(`Unsupported platform "${request.platform}".`);
+}
+function dispatchScheduledLivestreams(request, providers) {
+    if (!request || typeof request !== "object") {
+        throw new PlatformValidationError("Scheduled livestreams request is required.");
+    }
+    if (request.platform === "youtube") {
+        const provider = providers.youtube;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getScheduled({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    if (request.platform === "twitch") {
+        const provider = providers.twitch;
+        if (!provider) {
+            throw new PlatformValidationError(`No provider client was configured for platform "${request.platform}".`, { platform: request.platform });
+        }
+        return provider.livestreams.getScheduled({
+            channelId: request.channelId,
+            includeRaw: request.includeRaw,
+        });
+    }
+    // Kick does not support scheduled streams.
+    if (request.platform === "kick") {
+        throw new PlatformValidationError("Kick does not support scheduled livestreams.", {
+            platform: "kick",
+        });
+    }
+    throw new PlatformValidationError(`Unsupported platform "${request.platform}".`);
 }
