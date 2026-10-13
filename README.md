@@ -1,6 +1,6 @@
 # Unified Creator Metrics
 
-This package is under active development. If you install it from npm, prefer the `next` dist-tag so you explicitly opt into the latest pre-release builds.
+This package is under active development. Published releases use npm's default `latest` dist-tag; install without a tag to receive the default release.
 
 `Unified Creator Metrics` is a TypeScript library for normalized channel metrics, video metrics, and chat integrations across YouTube, Twitch, and Kick. Use provider clients directly when you need platform-native identifiers, or compose them with `createMultiPlatformClient()` when you want one routing surface.
 
@@ -35,10 +35,10 @@ npm install
 npm run build
 ```
 
-To install the published prerelease:
+To install the published release:
 
 ```bash
-npm install unified-creator-metrics@next
+npm install unified-creator-metrics
 ```
 
 ## Varlock + KeePassXC
@@ -391,10 +391,10 @@ The polls smoke suite creates visible live polls and then ends them:
 ## Publishing
 
 1. Make sure `npm test` and `npm run build` pass.
-2. Bump the version with a prerelease identifier when you want to ship changes early, for example:
+2. Bump the stable version, for example:
 
 ```bash
-npm version prerelease --preid=next
+npm version patch
 ```
 
 3. Publish to npm:
@@ -403,7 +403,14 @@ npm version prerelease --preid=next
 npm publish
 ```
 
-The package is configured to publish with the `next` dist-tag by default, so consumers must opt in to pre-release updates.
+The package is configured to publish with the `latest` dist-tag by default, so `npm install unified-creator-metrics` installs the default release.
+
+For an explicitly opt-in prerelease, use:
+
+```bash
+npm version prerelease --preid=next
+npm publish --tag next
+```
 
 ## License
 
